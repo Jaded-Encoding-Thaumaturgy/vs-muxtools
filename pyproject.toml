@@ -1,0 +1,34 @@
+
+[project]
+name = "vsmuxtools"
+version = "0.0.1"
+description = "The extension to muxtools with vapoursynth and encoding stuff"
+authors = [
+    { name="Vodes", email="vodes.imp@gmail.com" }
+]
+dependencies = [
+    "vapoursynth>=60",
+    "vstools>=1.6.2",
+    "muxtools>=0.0.1",
+]
+classifiers = [
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Other Audience",
+    "Programming Language :: Python :: 3.10",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Multimedia :: Video :: Display",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MPL 2.0"}
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+"Source Code" = "https://github.com/Vodes/vs-muxtools"
+"Contact" = "https://discord.gg/Kf94Nv6WVN"
