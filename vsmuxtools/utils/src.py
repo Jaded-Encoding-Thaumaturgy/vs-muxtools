@@ -181,8 +181,8 @@ def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: 
 f2s = frames_to_samples
 
 
-def generate_qp_file(clip: vs.VideoNode) -> str:
-    filepath = Path(get_workdir(), "qpfile.txt")
+def generate_qp_file(clip: vs.VideoNode, start_frame: int = 0) -> str:
+    filepath = Path(get_workdir(), f"qpfile_{start_frame}.txt")
     temp = Path(get_temp_workdir(), "qpfile.txt")
     if filepath.exists():
         info("Reusing existing QP File.")
@@ -190,6 +190,8 @@ def generate_qp_file(clip: vs.VideoNode) -> str:
     info("Generating QP File...")
     clip = clip.resize.Bicubic(640, 360, format=vs.YUV410P8)
     clip = clip.wwxd.WWXD()
+    if start_frame:
+        clip = clip[start_frame:]
     out = ""
     for i in range(1, clip.num_frames):
         if clip.get_frame(i).props.Scenechange == 1:
