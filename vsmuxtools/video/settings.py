@@ -34,8 +34,8 @@ def zones_to_args(zones: Zone | list[Zone] | None, x265: bool) -> list[str]:
 
 
 def settings_builder_x265(
-    preset: str | int = "slow",
-    crf: float = 14.5,
+    preset: str | int = "slower",
+    crf: float = 14.0,
     qcomp: float = 0.75,
     psy_rd: float = 2.0,
     psy_rdoq: float = 2.0,
