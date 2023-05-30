@@ -2,8 +2,7 @@ import shutil as sh
 from pathlib import Path
 from typing import Callable
 from fractions import Fraction
-from dataclasses import dataclass, field
-from vstools import vs, core, initialize_clip, copy_signature
+from vstools import vs, core, initialize_clip, copy_signature, Keyframes
 from muxtools import Trim, PathLike, parse_m2ts_path, ensure_path_exists, warn, info, get_workdir, get_temp_workdir, clean_temp_files
 
 
@@ -188,17 +187,8 @@ def generate_qp_file(clip: vs.VideoNode, start_frame: int = 0) -> str:
         info("Reusing existing QP File.")
         return str(filepath.resolve())
     info("Generating QP File...")
-    clip = clip.resize.Bicubic(640, 360, format=vs.YUV410P8)
-    clip = clip.wwxd.WWXD()
-    if start_frame:
-        clip = clip[start_frame:]
-    out = ""
-    for i in range(1, clip.num_frames):
-        if clip.get_frame(i).props.Scenechange == 1:
-            out += f"{i} I -1\n"
 
-    with open(temp, "w") as file:
-        file.write(out)
+    Keyframes.from_clip(clip).to_file(temp)
 
     temp.rename(filepath)
     clean_temp_files()
