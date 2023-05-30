@@ -16,7 +16,6 @@ __all__ = ["x264", "x265", "LosslessX264", "FFV1", "NVENC"]
 
 @dataclass
 class VideoEncoder(ABC):
-    settings: str | PathLike | None = None
     resumable = False
 
     @abstractmethod
@@ -39,6 +38,7 @@ class VideoEncoder(ABC):
 
 @dataclass
 class SupportsQP(VideoEncoder):
+    settings: str | PathLike | None = None
     zones: Zone | list[Zone] | None = None
     qp_file: PathLike | bool | None = None
     qp_clip: src_file | vs.VideoNode | None = None
@@ -76,7 +76,7 @@ class SupportsQP(VideoEncoder):
         if self.was_file:
             self.settings = fill_props(self.settings, clip, x265, self.sar)
 
-        self.settings = shlex.split(self.settings)
+        self.settings = self.settings if isinstance(self.settings, list) else shlex.split(self.settings)
 
         if self.add_props:
             self.settings.extend(props_args(clip, x265, self.sar))
@@ -157,9 +157,10 @@ class x264(SupportsQP):
     """
 
     resumable: bool = True
+    x265 = False
 
     def __post_init__(self):
-        self.executable = get_executable("x265")
+        self.executable = get_executable("x264")
         self._init_settings(self.x265)
 
     def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str, start_frame: int = 0) -> Path:
@@ -211,7 +212,7 @@ class x265(SupportsQP):
 
     resumable: bool = True
     csv: bool | PathLike = True
-    x265 = False
+    x265 = True
 
     def __post_init__(self):
         self.executable = get_executable("x265")
@@ -252,7 +253,7 @@ class LosslessX264(VideoEncoder):
     :param add_props:       This will explicitly add all props taken from the clip to the command line.
     """
 
-    preset: str | LosslessPreset = LosslessPreset.SPEED
+    preset: str | LosslessPreset = LosslessPreset.MIDDLEGROUND
     settings: str | None = None
     add_props: bool = True
 
@@ -267,7 +268,7 @@ class LosslessX264(VideoEncoder):
                 preset = "medium"
             case _:
                 preset = self.preset
-        settings = ["-p", preset, "--qp", "0"]
+        settings = ["--preset", preset, "--qp", "0"]
         if clip.format.bits_per_sample > 10:
             warn(f"This encoder does not support a bit depth over 10.\nClip will be dithered to 10 bit.", self, 2)
             clip = finalize_clip(clip, 10)

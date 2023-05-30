@@ -1,6 +1,6 @@
 from enum import Enum
 
-__all__ = ["LosslessX264Preset"]
+__all__ = ["LosslessPreset"]
 
 Zone = tuple[int, int, float | str, str | None]
 

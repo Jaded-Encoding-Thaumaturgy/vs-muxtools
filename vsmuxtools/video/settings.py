@@ -164,7 +164,9 @@ sb265 = sb
 sb264 = settings_builder_x264
 
 
-def file_or_default(file: PathLike, default: str, no_warn: bool = False) -> tuple[str, bool]:
+def file_or_default(file: PathLike, default: str, no_warn: bool = False) -> tuple[str | list[str], bool]:
+    if isinstance(file, list):
+        return file, False
     file = ensure_path(file, None)
 
     if file.exists():
