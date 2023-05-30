@@ -1,4 +1,5 @@
 import re
+from tracemalloc import start
 from muxtools import error, PathLike, ensure_path, warn
 from vstools import vs, Matrix, Primaries, Transfer, ColorRange, ChromaLocation, get_prop, Colorspace
 from ..utils.types import Zone
@@ -15,15 +16,39 @@ def is_full_zone(zone: Zone) -> bool:
         return False
 
 
+def shift_zones(zones: Zone | list[Zone] | None, start_frame: int = 0) -> list[Zone] | None:
+    if not zones:
+        return None
+    if not isinstance(zones, list):
+        zones = [zones]
+
+    newzones = list[Zone]()
+
+    for zone in zones:
+        zone = list(zone)
+        zone[0] = zone[0] - start_frame
+        zone[1] = zone[1] - start_frame
+        if zone[1] < 0:
+            continue
+        if zone[0] < 0:
+            zone[0] = 0
+        zone = tuple(zone)
+        newzones.append(zone)
+
+    return newzones
+
+
 def zones_to_args(zones: Zone | list[Zone] | None, x265: bool) -> list[str]:
     args: list[str] = []
     if not zones:
         return args
+    if not isinstance(zones, list):
+        zones = [zones]
     zones_settings: str = ""
     for i, zone in enumerate(zones):
         if is_full_zone(zone):
-            if x265 and zone[2].lower() != "q":
-                raise ValueError(f"Zone '{zone}' is invalid for x265. Please only use b or q.")
+            if x265 and zone[2].lower() not in ["q", "b"]:
+                raise error(f"Zone '{zone}' is invalid for x265. Please only use b or q.")
             zones_settings += f"{zone[0]},{zone[1]},{zone[2]}={zone[3]}"
         else:
             zones_settings += f"{zone[0]},{zone[1]},b={zone[2]}"
@@ -59,6 +84,7 @@ def settings_builder_x265(
     weightb: bool = True,
     deblock: list[int] | str = [-2, -2],
     append: str = "",
+    **kwargs,
 ) -> str:
     # Simple insert values
     settings = f" --preset {preset} --crf {crf} --bframes {bframes} --ref {ref} --rc-lookahead {rc_lookahead} --subme {subme} --me {me}"
@@ -76,6 +102,13 @@ def settings_builder_x265(
 
     # Don't need to change these lol
     settings += " --no-sao --no-sao-non-deblock --no-strong-intra-smoothing --no-open-gop"
+
+    for k, v in kwargs:
+        prefix = "--"
+        if k.startswith("_"):
+            prefix = "-"
+            k = k[1:]
+        settings += f" {prefix}{k.replace('_', '-')} {v}"
 
     settings += (" " + append.strip()) if append.strip() else ""
     return settings
@@ -101,6 +134,7 @@ def settings_builder_x264(
     deblock: list[int] | str = [-1, -1],
     dct_decimate: bool = False,
     append: str = "",
+    **kwargs,
 ) -> str:
     # Simple insert values
     settings = f" --preset {preset} --crf {crf} --bframes {bframes} --ref {ref} --rc-lookahead {rc_lookahead} --me {me} --merange {merange}"
@@ -113,6 +147,13 @@ def settings_builder_x264(
     if isinstance(deblock, list):
         deblock = f"{str(deblock[0])}:{str(deblock[1])}"
     settings += f" --deblock={deblock}"
+
+    for k, v in kwargs:
+        prefix = "--"
+        if k.startswith("_"):
+            prefix = "-"
+            k = k[1:]
+        settings += f" {prefix}{k.replace('_', '-')} {v}"
 
     settings += (" " + append.strip()) if append.strip() else ""
     return settings
@@ -160,6 +201,7 @@ def get_props(clip: vs.VideoNode, x265: bool) -> dict[str, str]:
         "fps_den": str(clip.fps_den),
         "min_luma": str(16 << (bits - 8) if is_limited else 0),
         "max_luma": str(235 << (bits - 8) if is_limited else (1 << bits) - 1),
+        "lookahead": str(min(clip.fps_num * 5, 250)),
     }
 
 
@@ -190,6 +232,7 @@ def fill_props(settings: str, clip: vs.VideoNode, x265: bool, sar: str | None = 
     settings = re.sub(r"{sarden(?::.)?}", sarden, settings)
     settings = re.sub(r"{min_luma(?::.)?}", props.get("min_luma"), settings)
     settings = re.sub(r"{max_luma(?::.)?}", props.get("max_luma"), settings)
+    settings = re.sub(r"{lookahead(?::.)?}", props.get("lookahead"), settings)
     return settings
 
 
