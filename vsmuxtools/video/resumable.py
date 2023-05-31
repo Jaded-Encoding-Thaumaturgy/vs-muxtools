@@ -41,6 +41,13 @@ def merge_parts(last: Path, original_out: Path, keyframes: list[int], parts: lis
         _to_delete.update([p_mkv001, p_mkv002])
     _to_delete.update(parts)
 
+    if len(mkv_parts) < 1:
+        info("Encode finished successfully without requiring other parts")
+        for f in _to_delete:
+            f.unlink(True)
+        last.rename(original_out)
+        return
+
     # Remux the last encoded part
     last_mkv = last.with_suffix(".mkv").resolve()
     args = [mkvmerge, "-o", str(last_mkv), str(last.resolve())]
@@ -51,22 +58,16 @@ def merge_parts(last: Path, original_out: Path, keyframes: list[int], parts: lis
 
     out_mkv = original_out.with_suffix(".mkv").resolve()
 
-    # Actually merge them now
-    if len(mkv_parts) > 1:
-        args = [mkvmerge, "-o", str(out_mkv)]
-        first = True
-        for part in mkv_parts:
-            if not first:
-                args.append("+")
-            args.append(str(part.resolve()))
-            first = False
+    args = [mkvmerge, "-o", str(out_mkv)]
+    first = True
+    for part in mkv_parts:
+        if not first:
+            args.append("+")
+        args.append(str(part.resolve()))
+        first = False
 
-        if run_commandline(args, quiet) > 1:
-            raise error("Failed to remux last part", merge_parts)
-    else:
-        only = mkv_parts.pop(0)
-        only.rename(out_mkv)
-        _to_delete.remove(only)
+    if run_commandline(args, quiet) > 1:
+        raise error("Failed to remux last part", merge_parts)
 
     info("Extracting merged part...")
     args = [mkvextract, str(out_mkv), "tracks", f"0:{str(original_out.resolve())}"]

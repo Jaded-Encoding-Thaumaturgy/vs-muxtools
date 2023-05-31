@@ -39,11 +39,11 @@ class src_file:
             self.trim = list(self.trim)
             if self.trim[0] is None:
                 self.trim[0] = 0
-                self.trim = tuple(self.trim)
             if self.trim[1] is None or self.trim[1] == 0:
                 cut = indexed[self.trim[0] :]
             else:
                 cut = indexed[self.trim[0] : self.trim[1]]
+            self.trim = tuple(self.trim)
 
         if self.file.suffix.lower() == ".dgi":
             if self.file.with_suffix(".m2ts").exists():

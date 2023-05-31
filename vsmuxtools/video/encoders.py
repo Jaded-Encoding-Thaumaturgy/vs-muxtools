@@ -11,7 +11,7 @@ from ..utils.src import generate_qp_file, src_file
 from .resumable import merge_parts, parse_keyframes
 from .settings import file_or_default, fill_props, props_args, sb264, sb265, shift_zones, zones_to_args
 
-__all__ = ["x264", "x265", "LosslessX264", "FFV1", "NVENC"]
+__all__ = ["x264", "x265", "LosslessX264", "FFV1"]
 
 
 @dataclass
@@ -325,23 +325,3 @@ class FFV1(VideoEncoder):
         clip.output(process.stdin, y4m=True, progress_update=lambda x, y: self._update_progress(x, y))
         process.communicate()
         return VideoFile(out)
-
-
-@dataclass
-class NVENC(VideoEncoder):
-    """
-    Uses ffmpeg to encode clip to a lossless avc/hevc stream using your nvidia gpu.
-
-    :param hevc:            Use hevc if True, avc otherwise.
-                            Only hevc supports 10 bit and 10 is also the absolute maximum.
-    :param ensure_props:    Calls initialize_clip on the clip to have at the very least guessed props
-    """
-
-    hevc: bool = True
-    ensure_props: bool = True
-
-    def __post_init__(self):
-        self.executable = get_executable("nvencc")
-
-    def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
-        ...
