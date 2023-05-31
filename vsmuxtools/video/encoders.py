@@ -246,7 +246,7 @@ class x265(SupportsQP):
 @dataclass
 class LosslessX264(VideoEncoder):
     """
-    Uses ffmpeg to encode clip to a lossless ffv1 stream.
+    Uses x264 to encode clip to a lossless avc stream.
 
     :param preset:          Can either be a string of some x264 preset or any of the 3 predefined presets.
     :param settings:        Any other settings you might want to pass. Entirely optional.
