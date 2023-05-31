@@ -7,7 +7,7 @@ from muxtools import PathLike, AudioFile, Encoder, Trimmer, Extractor, AutoEncod
 
 from ..utils.src import src_file
 
-__all__ = ["do_audio"]
+__all__ = ["do_audio", "encode_audio"]
 
 
 def do_audio(
@@ -61,3 +61,6 @@ def do_audio(
     else:
         fps = Fraction(24000, 1001)
     return mt_audio(fileIn, track, trims, fps, num_frames, extractor, trimmer, encoder, quiet, output)
+
+
+encode_audio = do_audio
