@@ -1,7 +1,7 @@
 
 [project]
 name = "vsmuxtools"
-version = "0.0.2"
+version = "0.0.3"
 description = "The extension to muxtools with vapoursynth and encoding stuff"
 authors = [
     { name="Vodes", email="vodes.imp@gmail.com" }
@@ -9,7 +9,7 @@ authors = [
 dependencies = [
     "vapoursynth>=60",
     "vstools>=1.6.2",
-    "muxtools>=0.0.2",
+    "muxtools>=0.0.3",
 ]
 classifiers = [
     "Natural Language :: English",
