@@ -67,22 +67,22 @@ class src_file:
         return self.clip_cut
 
     @copy_signature(initialize_clip)
-    def init(self, **kwargs) -> vs.VideoNode:
+    def init(self, *args, **kwargs) -> vs.VideoNode:
         """
         Getter that calls `vstools.initialize_clip` on the src clip for convenience
 
         :param kwargs:      Any other args passed to initialize_clip
         """
-        return initialize_clip(self.src, **kwargs)
+        return initialize_clip(self.src, *args, **kwargs)
 
     @copy_signature(initialize_clip)
-    def init_cut(self, **kwargs) -> vs.VideoNode:
+    def init_cut(self, *args, **kwargs) -> vs.VideoNode:
         """
         Getter that calls `vstools.initialize_clip` on the src_cut clip for convenience
 
         :param kwargs:      Any other args passed to initialize_clip
         """
-        return initialize_clip(self.src_cut, **kwargs)
+        return initialize_clip(self.src_cut, *args, **kwargs)
 
     def get_audio(self, track: int = 0, **kwargs) -> vs.AudioNode:
         """
