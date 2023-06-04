@@ -1,7 +1,7 @@
 
 [project]
 name = "vsmuxtools"
-version = "0.0.3"
+version = "0.0.4"
 description = "The extension to muxtools with vapoursynth and encoding stuff"
 authors = [
     { name="Vodes", email="vodes.imp@gmail.com" }
