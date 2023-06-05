@@ -167,8 +167,11 @@ sb264 = settings_builder_x264
 def file_or_default(file: PathLike, default: str, no_warn: bool = False) -> tuple[str | list[str], bool]:
     if isinstance(file, list):
         return file, False
-    file = ensure_path(file, None)
-
+    try:
+        file = ensure_path(file, None)
+    except OSError as err:
+        if err.errno == 36:
+            return default, False
     if file.exists():
         with open(file, "r") as r:
             settings = str(r.read())
