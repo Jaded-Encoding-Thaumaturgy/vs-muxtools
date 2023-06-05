@@ -9,6 +9,7 @@ authors = [
 dependencies = [
     "vapoursynth>=60",
     "vstools>=1.6.2",
+    "numpy>=1.24.3",
     "muxtools>=0.0.5",
 ]
 classifiers = [

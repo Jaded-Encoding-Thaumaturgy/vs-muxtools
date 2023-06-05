@@ -3,7 +3,19 @@ from pathlib import Path
 from typing import Callable
 from fractions import Fraction
 from vstools import vs, core, initialize_clip, copy_signature
-from muxtools import Trim, PathLike, parse_m2ts_path, ensure_path_exists, warn, info, get_workdir, get_temp_workdir, clean_temp_files
+from muxtools import (
+    Trim,
+    PathLike,
+    parse_m2ts_path,
+    ensure_path_exists,
+    warn,
+    info,
+    get_workdir,
+    get_temp_workdir,
+    clean_temp_files,
+    get_absolute_track,
+    TrackType,
+)
 
 
 __all__ = ["src_file", "SRC_FILE", "FileInfo", "src", "frames_to_samples", "f2s"]
@@ -90,7 +102,10 @@ class src_file:
         """
         args = dict(exact=True)
         args.update(**kwargs)
-        return core.bs.AudioSource(str(self.file.resolve()), track, **args)
+
+        absolute = get_absolute_track(self.file, track, TrackType.AUDIO)
+
+        return core.bs.AudioSource(str(self.file.resolve()), absolute.track_id, **args)
 
     def get_audio_trimmed(self, track: int = 0, **kwargs) -> vs.AudioNode:
         """

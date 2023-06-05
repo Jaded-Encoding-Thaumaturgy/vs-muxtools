@@ -1,17 +1,51 @@
+from pathlib import Path
 from vstools import vs
 from typing import overload
 from fractions import Fraction
 
 from muxtools import do_audio as mt_audio
-from muxtools import PathLike, AudioFile, Encoder, Trimmer, Extractor, AutoEncoder, AutoTrimmer, FFMpeg, Trim, warn
+from muxtools import (
+    PathLike,
+    AudioFile,
+    Encoder,
+    Trimmer,
+    Extractor,
+    AutoEncoder,
+    AutoTrimmer,
+    FFMpeg,
+    Trim,
+    warn,
+    uniquify_path,
+    get_workdir,
+    ensure_path,
+)
 
 from ..utils.src import src_file
+from ..utils.audio import audio_async_render
 
-__all__ = ["do_audio", "encode_audio"]
+__all__ = ["do_audio", "encode_audio", "export_audionode"]
+
+
+def export_audionode(node: vs.AudioNode, outfile: PathLike | None = None) -> Path:
+    """
+    Exports an audionode to a wav/w64 file.
+
+    :param node:            Your audionode
+    :param outfile:         Custom output path if any
+
+    :return:                Returns path
+    """
+    if not outfile:
+        outfile = uniquify_path(Path(get_workdir(), "exported.wav"))
+
+    outfile = ensure_path(outfile, export_audionode)
+    with open(outfile, "wb") as bf:
+        audio_async_render(node, bf)
+    return outfile
 
 
 def do_audio(
-    fileIn: PathLike | src_file,
+    fileIn: PathLike | src_file | vs.AudioNode,
     track: int = 0,
     trims: Trim | list[Trim] | None = None,
     fps: Fraction | None = None,
@@ -25,7 +59,7 @@ def do_audio(
     """
     One-liner to handle the whole audio processing
 
-    :param fileIn:          Input file or src_file/FileInfo
+    :param fileIn:          Input file or src_file/FileInfo or AudioNode
     :param track:           Audio track number
     :param trims:           Frame ranges to trim and/or combine, e. g. (24, -24) or [(24, 500), (700, 900)]
                             If your passed src_file has a trim it will use it. Any other trims passed here will overwrite it.
@@ -36,7 +70,7 @@ def do_audio(
     :param num_frames:      Total number of frames, used for negative numbers in trims
                             Will be taken from input if it's a src_file
 
-    :param extractor:       Tool used to extract the audio
+    :param extractor:       Tool used to extract the audio (Will default to None if an AudioNode gets passed)
     :param trimmer:         Tool used to trim the audio
                             AutoTrimmer means it will choose ffmpeg for lossy and Sox for lossless
 
@@ -50,8 +84,16 @@ def do_audio(
     if trims is not None:
         if isinstance(fileIn, src_file):
             warn("Other trims passed will overwrite whatever your src_file has!", do_audio, 1)
+        if isinstance(fileIn, vs.AudioNode):
+            warn("Trims won't be applied if you pass an Audionode. Just do them yourself before this lol.", do_audio, 1)
+            trims = None
+            trimmer = None
 
-    if isinstance(fileIn, src_file):
+    if isinstance(fileIn, vs.AudioNode):
+        fps = Fraction(24000, 1001)
+        extractor = None
+        fileIn = export_audionode(fileIn)
+    elif isinstance(fileIn, src_file):
         if not trims:
             trims = fileIn.trim
         clip = fileIn.src
