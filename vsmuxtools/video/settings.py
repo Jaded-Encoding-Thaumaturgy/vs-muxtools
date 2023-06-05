@@ -1,4 +1,6 @@
+from genericpath import isfile
 import re
+import os
 from tracemalloc import start
 from muxtools import error, PathLike, ensure_path, warn
 from vstools import vs, Matrix, Primaries, Transfer, ColorRange, ChromaLocation, get_prop, Colorspace
@@ -167,17 +169,14 @@ sb264 = settings_builder_x264
 def file_or_default(file: PathLike, default: str, no_warn: bool = False) -> tuple[str | list[str], bool]:
     if isinstance(file, list):
         return file, False
-    try:
+    if os.path.isfile(file):
         file = ensure_path(file, None)
-    except OSError as err:
-        if err.errno == 36:
-            return default, False
-    if file.exists():
-        with open(file, "r") as r:
-            settings = str(r.read())
-            settings = settings.replace("\n", " ")
-            settings = re.sub(r"(?:-o|--output) {clip.+?}", "", settings, flags=re.I).strip()
-            return settings, True
+        if file.exists():
+            with open(file, "r") as r:
+                settings = str(r.read())
+                settings = settings.replace("\n", " ")
+                settings = re.sub(r"(?:-o|--output) {clip.+?}", "", settings, flags=re.I).strip()
+                return settings, True
 
     if not no_warn:
         warn("Settings file wasn't found. Using default.", None, 3)
