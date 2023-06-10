@@ -21,7 +21,7 @@ class Chapters(Ch):
             clip_fps = Fraction(chapter_source.src.fps_num, chapter_source.src.fps_den)
             self.fps = fps if fps else clip_fps
             self.chapters = parse_chapters_bdmv(chapter_source.file, self.fps, chapter_source.src.num_frames, _print)
-            if chapter_source.trim:
+            if self.chapters and chapter_source.trim:
                 self.trim(chapter_source.trim[0], chapter_source.trim[1], chapter_source.src.num_frames)
                 if _print:
                     print("After trim:")
