@@ -1,22 +1,32 @@
-from pathlib import Path
+import os
 import re
 import subprocess
+from pathlib import Path
 from muxtools import ensure_path_exists, PathLike, get_executable, run_commandline, error, info
 
 
 def parse_keyframes(file: PathLike) -> list[int]:
+    pattern = re.compile(r"n:(?: +)?(?P<frame>\d+).*type:(?: +)?(?P<type>.)")
     file = ensure_path_exists(file, parse_keyframes)
     frames = list[int]()
-    ffprobe = get_executable("ffprobe")
-    args = [ffprobe, "-select_streams", "v", "-show_frames", "-show_entries", "frame=pict_type", str(file)]
+    # ffmpeg seems to be A LOT faster than ffprobe for this. (Maybe ffprobe can't multithread?)
+    ffmpeg = get_executable("ffmpeg")
+    out_var = "NUL" if os.name == "nt" else "/dev/null"
+    args = [ffmpeg, "-hide_banner", "-i", str(file), "-map", "0:v:0", "-filter:v", "showinfo", "-f", "null", out_var]
     out = subprocess.run(args, capture_output=True, text=True)
-    current = 0
-    for line in out.stdout.splitlines():
-        line = line.strip()
-        if line.startswith("pict_type"):
-            if line.split("=")[1] == "I":
-                frames.append(current)
-            current += 1
+    if out.returncode != 0:
+        error("Failed to parse video keyframes using ffmpeg!", parse_keyframes)
+        print(out.stderr)
+        print(out.stdout)
+        out.check_returncode()
+
+    for line in out.stderr.splitlines():
+        if "showinfo" in line:
+            matches = re.findall(pattern, line.strip())
+            if matches:
+                match = matches[0]
+                if match[1] == "I":
+                    frames.append(int(match[0]))
     return frames
 
 
