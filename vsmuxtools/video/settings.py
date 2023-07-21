@@ -105,7 +105,7 @@ def settings_builder_x265(
     # Don't need to change these lol
     settings += " --no-sao --no-sao-non-deblock --no-strong-intra-smoothing --no-open-gop"
 
-    for k, v in kwargs:
+    for k, v in kwargs.items():
         prefix = "--"
         if k.startswith("_"):
             prefix = "-"
@@ -150,7 +150,7 @@ def settings_builder_x264(
         deblock = f"{str(deblock[0])}:{str(deblock[1])}"
     settings += f" --deblock={deblock}"
 
-    for k, v in kwargs:
+    for k, v in kwargs.items():
         prefix = "--"
         if k.startswith("_"):
             prefix = "-"
