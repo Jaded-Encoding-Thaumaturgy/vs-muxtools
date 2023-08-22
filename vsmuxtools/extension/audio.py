@@ -90,7 +90,6 @@ def do_audio(
             trimmer = None
 
     if isinstance(fileIn, vs.AudioNode):
-        fps = Fraction(24000, 1001)
         extractor = None
         fileIn = export_audionode(fileIn)
     elif isinstance(fileIn, src_file):
@@ -98,10 +97,10 @@ def do_audio(
             trims = fileIn.trim
         clip = fileIn.src
         num_frames = clip.num_frames
-        fps = Fraction(clip.fps_num, clip.fps_den)
+        fps = Fraction(clip.fps_num, clip.fps_den) if fps is None else fps
         fileIn = fileIn.file
-    else:
-        fps = Fraction(24000, 1001)
+
+    fps = Fraction(24000, 1001) if fps is None else fps
     return mt_audio(fileIn, track, trims, fps, num_frames, extractor, trimmer, encoder, quiet, output)
 
 
