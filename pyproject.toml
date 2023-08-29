@@ -1,16 +1,14 @@
 
 [project]
 name = "vsmuxtools"
-version = "0.0.7"
+version = "0.0.8"
 description = "The extension to muxtools with vapoursynth and encoding stuff"
-authors = [
-    { name="Vodes", email="vodes.imp@gmail.com" }
-]
+authors = [{ name = "Vodes", email = "vodes.imp@gmail.com" }]
 dependencies = [
     "vapoursynth>=60",
     "vstools>=1.6.2",
     "numpy>=1.24.3",
-    "muxtools>=0.0.7",
+    "muxtools>=0.0.8",
 ]
 classifiers = [
     "Natural Language :: English",
@@ -22,11 +20,11 @@ classifiers = [
     "Topic :: Multimedia :: Video",
     "Topic :: Multimedia :: Video :: Display",
     "Topic :: Multimedia :: Video :: Conversion",
-    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "MPL 2.0"}
+license = { text = "MPL 2.0" }
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
