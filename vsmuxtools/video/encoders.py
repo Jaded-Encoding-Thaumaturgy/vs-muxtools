@@ -225,7 +225,7 @@ class x265(SupportsQP):
                 show_name = get_setup_attr("show_name", "")
                 csv_file = Path(show_name + f"{'_' if show_name else ''}log_x265.csv").resolve()
             else:
-                csv_file = ensure_path(csv_file)
+                csv_file = ensure_path(self.csv, self)
             args.extend(["--csv", str(csv_file)])
         if qpfile:
             args.extend(["--qpfile", qpfile])
