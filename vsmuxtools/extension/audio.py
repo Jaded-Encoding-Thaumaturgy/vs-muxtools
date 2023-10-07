@@ -48,7 +48,7 @@ def do_audio(
     fileIn: PathLike | src_file | vs.AudioNode,
     track: int = 0,
     trims: Trim | list[Trim] | None = None,
-    fps: Fraction | None = None,
+    fps: Fraction | PathLike | None = None,
     num_frames: int = 0,
     extractor: Extractor = FFMpeg.Extractor(),
     trimmer: Trimmer | None = AutoTrimmer(),
@@ -61,11 +61,12 @@ def do_audio(
 
     :param fileIn:          Input file or src_file/FileInfo or AudioNode
     :param track:           Audio track number
-    :param trims:           Frame ranges to trim and/or combine, e. g. (24, -24) or [(24, 500), (700, 900)]
+    :param trims:           Frame ranges to trim and/or combine, e.g. (24, -24) or [(24, 500), (700, 900)]
                             If your passed src_file has a trim it will use it. Any other trims passed here will overwrite it.
 
     :param fps:             FPS Fraction used for the conversion to time
                             Will be taken from input if it's a src_file and assume the usual 24 if not.
+                            Also accepts a timecode (v2) file.
 
     :param num_frames:      Total number of frames, used for negative numbers in trims
                             Will be taken from input if it's a src_file
@@ -77,7 +78,7 @@ def do_audio(
     :param encoder:         Tool used to encode the audio
                             AutoEncoder means it won't reencode lossy and choose opus otherwise
 
-    :param quiet:           Whether or not the tool output should be visible
+    :param quiet:           Whether the tool output should be visible
     :param output:          Custom output file or directory, extensions will be automatically added
     :return:                AudioFile Object containing file path, delays and source
     """

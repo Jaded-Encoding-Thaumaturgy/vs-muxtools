@@ -8,13 +8,14 @@ __all__ = ["Chapters"]
 
 class Chapters(Ch):
     def __init__(
-        self, chapter_source: src_file | PathLike | GlobSearch | Chapter | list[Chapter], fps: Fraction | None = None, _print: bool = True
+        self, chapter_source: src_file | PathLike | GlobSearch | Chapter | list[Chapter], fps: Fraction | PathLike | None = None, _print: bool = True
     ) -> None:
         """
         Convenience class for chapters
 
         :param chapter_source:      Input either src_file/FileInfo, txt with ogm chapters, xml or (a list of) self defined chapters.
         :param fps:                 Needed for timestamp convertion. Gets the fps from the clip if src_file and otherwise assumes 24000/1001.
+                                    Also accepts a timecode (v2) file.
         :param _print:              Prints chapters after parsing and after trimming.
         """
         if isinstance(chapter_source, src_file):

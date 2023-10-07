@@ -36,13 +36,13 @@ class SubFile(MTSubFile):
     """
 
     def truncate_by_video(
-        self: SubFileSelf, source: PathLike | VideoTrack | MkvTrack | VideoFile | vs.VideoNode, fps: Fraction | None = None
+        self: SubFileSelf, source: PathLike | VideoTrack | MkvTrack | VideoFile | vs.VideoNode, fps: Fraction | PathLike | None = None
     ) -> SubFileSelf:
         """
         Removes lines that start after the video ends and trims lines that extend past it.
 
         :param source:      Can be any video file or a VideoNode
-        :param fps:         FPS Fraction; Will be parsed from the video by default
+        :param fps:         FPS Fraction; Will be parsed from the video by default. Also accepts a timecode (v2) file.
         """
         if isinstance(source, vs.VideoNode):
             frames = source.num_frames
