@@ -1,4 +1,5 @@
 import shutil as sh
+from os import PathLike
 from pathlib import Path
 from typing import Callable
 from fractions import Fraction
@@ -15,6 +16,7 @@ from muxtools import (
     clean_temp_files,
     get_absolute_track,
     TrackType,
+    GlobSearch,
 )
 
 
@@ -28,7 +30,9 @@ class src_file:
     idx: Callable[[str], vs.VideoNode] | None = None
     idx_args = {}
 
-    def __init__(self, file: PathLike, force_lsmas: bool = False, trim: Trim = None, idx: Callable[[str], vs.VideoNode] | None = None, **kwargs):
+    def __init__(
+        self, file: PathLike | GlobSearch, force_lsmas: bool = False, trim: Trim = None, idx: Callable[[str], vs.VideoNode] | None = None, **kwargs
+    ):
         """
         Custom `FileInfo` kind of thing for convenience
 
