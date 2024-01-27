@@ -4,7 +4,7 @@ The extension to muxtools with vapoursynth and encoding stuff
 
 ## How do I use this?
 
-You might wanna check out the [wiki](https://github.com/Irrational-Encoding-Wizardry/vs-muxtools/wiki).
+You might wanna check out the [guide/wiki](https://muxtools.vodes.pw/).
 
 ## Installation
 
