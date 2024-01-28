@@ -1,5 +1,4 @@
 import shutil as sh
-from os import PathLike
 from pathlib import Path
 from typing import Callable
 from fractions import Fraction
@@ -24,7 +23,7 @@ __all__ = ["src_file", "SRC_FILE", "FileInfo", "src", "frames_to_samples", "f2s"
 
 
 class src_file:
-    file: PathLike
+    file: Path
     force_lsmas: bool = False
     trim: Trim = None
     idx: Callable[[str], vs.VideoNode] | None = None
