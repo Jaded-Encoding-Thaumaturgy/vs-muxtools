@@ -25,30 +25,43 @@ __all__ = ["src_file", "SRC_FILE", "FileInfo", "src", "frames_to_samples", "f2s"
 class src_file:
     file: Path
     force_lsmas: bool = False
+    force_bs: bool = False
     trim: Trim = None
     idx: Callable[[str], vs.VideoNode] | None = None
     idx_args = {}
 
     def __init__(
-        self, file: PathLike | GlobSearch, force_lsmas: bool = False, trim: Trim = None, idx: Callable[[str], vs.VideoNode] | None = None, **kwargs
+        self,
+        file: PathLike | GlobSearch,
+        force_lsmas: bool = False,
+        force_bs: bool = False,
+        trim: Trim = None,
+        idx: Callable[[str], vs.VideoNode] | None = None,
+        **kwargs,
     ):
         """
         Custom `FileInfo` kind of thing for convenience
 
         :param file:            Either a string based filepath or a Path object
-        :param force_lsmas:     Forces the use of lsmas inside of `vodesfunc.src`
+        :param force_lsmas:     Forces the use of lsmas inside of `vodesfunc.src` Note: if `force_bs` is true this is ignored
+        :param force_bs:        Skip dgsource entirely and use bestsource
         :param trim:            Can be a single trim or a sequence of trims.
         :param idx:             Indexer for the input file. Pass a function that takes a string in and returns a vs.VideoNode.
                                 Defaults to `vodesfunc.src`
         """
         self.file = ensure_path_exists(file, self)
         self.force_lsmas = force_lsmas
+        self.force_bs = force_bs
         self.trim = trim
         self.idx = idx
         self.idx_args = kwargs
 
     def __index_clip(self):
-        indexed = self.idx(str(self.file.resolve())) if self.idx else src(str(self.file.resolve()), self.force_lsmas, **self.idx_args)
+        indexed = (
+            self.idx(str(self.file.resolve()))
+            if self.idx
+            else src(str(self.file.resolve()), self.force_lsmas, **self.idx_args)
+        )
         cut = indexed
         if self.trim:
             self.trim = list(self.trim)
@@ -125,7 +138,11 @@ class src_file:
             if self.trim[1] is None or self.trim[1] == 0:
                 node = node[f2s(self.trim[0], node, self.src) :]
             else:
-                node = node[f2s(self.trim[0], node, self.src) : f2s(self.trim[1], node, self.src)]
+                node = node[
+                    f2s(self.trim[0], node, self.src) : f2s(
+                        self.trim[1], node, self.src
+                    )
+                ]
         return node
 
 
@@ -133,13 +150,20 @@ SRC_FILE = src_file
 FileInfo = src_file
 
 
-def src(filePath: PathLike, force_lsmas: bool = False, delete_dgi_log: bool = True, **kwargs) -> vs.VideoNode:
+def src(
+    filePath: PathLike,
+    force_lsmas: bool = False,
+    force_bs: bool = False,
+    delete_dgi_log: bool = True,
+    **kwargs,
+) -> vs.VideoNode:
     """
     Uses dgindex as Source and requires dgindexnv in path
     to generate files if they don't exist.
 
     :param filepath:        Path to video or dgi file
-    :param force_lsmas:     Skip dgsource entirely and use lsmas
+    :param force_lsmas:     Skip dgsource entirely and use lsmas. Note: if `force_bs` is true this is ignored
+    :param force_bs:        Skip dgsource entirely and use bestsource
     :param delete_dgi_log:  Delete the .log files dgindexnv creates
     :return:                Video Node
     """
@@ -160,12 +184,17 @@ def src(filePath: PathLike, force_lsmas: bool = False, delete_dgi_log: bool = Tr
         if format is not None and bitdepth is not None:
             if str(format).strip().lower() == "avc" and int(bitdepth) > 8:
                 forceFallBack = True
-                warn(f"Falling back to lsmas for Hi10 ({Path(filePath).name})", src)
+                warn(
+                    f"Falling back to BestSource for Hi10 ({Path(filePath).name})", src
+                )
             elif str(format).strip().lower() == "ffv1":
                 forceFallBack = True
-                warn(f"Falling back to lsmas for FFV1 ({Path(filePath).name})", src)
-
-    if force_lsmas or forceFallBack:
+                warn(
+                    f"Falling back to BestSource for FFV1 ({Path(filePath).name})", src
+                )
+    if force_bs or forceFallBack:
+        return core.bs.VideoSource(filePath, **kwargs)
+    if force_lsmas:
         return core.lsmas.LWLibavSource(filePath, **kwargs)
 
     path = Path(filePath)
@@ -178,13 +207,22 @@ def src(filePath: PathLike, force_lsmas: bool = False, delete_dgi_log: bool = Tr
         import os
         import subprocess as sub
 
-        sub.Popen(f'dgindexnv -i "{path.name}" -h -o "{dgiFile.name}" -e', shell=True, stdout=sub.DEVNULL, cwd=path.parent.resolve(True)).wait()
+        sub.Popen(
+            f'dgindexnv -i "{path.name}" -h -o "{dgiFile.name}" -e',
+            shell=True,
+            stdout=sub.DEVNULL,
+            cwd=path.parent.resolve(True),
+        ).wait()
         if path.with_suffix(".log").exists() and delete_dgi_log:
             os.remove(path.with_suffix(".log").resolve(True))
         return core.dgdecodenv.DGSource(dgiFile.resolve(True), **kwargs)
 
 
-def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: vs.VideoNode | Fraction = Fraction(24000, 1001)) -> int:
+def frames_to_samples(
+    frame: int,
+    sample_rate: vs.AudioNode | int = 48000,
+    fps: vs.VideoNode | Fraction = Fraction(24000, 1001),
+) -> int:
     """
     Converts a frame number to a sample number
 
@@ -196,7 +234,11 @@ def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: 
     """
     if frame == 0:
         return 0
-    sample_rate = sample_rate.sample_rate if isinstance(sample_rate, vs.AudioNode) else sample_rate
+    sample_rate = (
+        sample_rate.sample_rate
+        if isinstance(sample_rate, vs.AudioNode)
+        else sample_rate
+    )
     fps = Fraction(fps.fps_num, fps.fps_den) if isinstance(fps, vs.VideoNode) else fps
     return int(sample_rate * (fps.denominator / fps.numerator) * frame)
 
