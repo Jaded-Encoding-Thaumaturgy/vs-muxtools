@@ -30,8 +30,15 @@ class src_file:
     idx: Callable[[str], vs.VideoNode] | None = None
     idx_args = {}
 
-    def __init__(self, file: PathLike | GlobSearch, force_lsmas: bool = False, force_bs: bool = False, trim: Trim = None, idx: Callable[[str], vs.VideoNode] | None = None,**kwargs,
-                 ):
+    def __init__(
+        self,
+        file: PathLike | GlobSearch,
+        force_lsmas: bool = False,
+        force_bs: bool = False,
+        trim: Trim = None,
+        idx: Callable[[str], vs.VideoNode] | None = None,
+        **kwargs,
+    ):
         """
         Custom `FileInfo` kind of thing for convenience
 
@@ -50,7 +57,16 @@ class src_file:
         self.idx_args = kwargs
 
     def __index_clip(self):
-        indexed = self.idx(str(self.file.resolve())) if self.idx else src( str(self.file.resolve()), self.force_lsmas, self.force_bs, **self.idx_args)
+        indexed = (
+            self.idx(str(self.file.resolve()))
+            if self.idx
+            else src(
+                str(self.file.resolve()),
+                self.force_lsmas,
+                self.force_bs,
+                **self.idx_args,
+            )
+        )
         cut = indexed
         if self.trim:
             self.trim = list(self.trim)
@@ -127,7 +143,11 @@ class src_file:
             if self.trim[1] is None or self.trim[1] == 0:
                 node = node[f2s(self.trim[0], node, self.src) :]
             else:
-                node = node[f2s(self.trim[0], node, self.src) : f2s(self.trim[1], node, self.src)]
+                node = node[
+                    f2s(self.trim[0], node, self.src) : f2s(
+                        self.trim[1], node, self.src
+                    )
+                ]
         return node
 
 
@@ -192,13 +212,22 @@ def src(
         import os
         import subprocess as sub
 
-        sub.Popen(f'dgindexnv -i "{path.name}" -h -o "{dgiFile.name}" -e', shell=True, stdout=sub.DEVNULL, cwd=path.parent.resolve(True),).wait()
+        sub.Popen(
+            f'dgindexnv -i "{path.name}" -h -o "{dgiFile.name}" -e',
+            shell=True,
+            stdout=sub.DEVNULL,
+            cwd=path.parent.resolve(True),
+        ).wait()
         if path.with_suffix(".log").exists() and delete_dgi_log:
             os.remove(path.with_suffix(".log").resolve(True))
         return core.dgdecodenv.DGSource(dgiFile.resolve(True), **kwargs)
 
 
-def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: vs.VideoNode | Fraction = Fraction(24000, 1001),) -> int:
+def frames_to_samples(
+    frame: int,
+    sample_rate: vs.AudioNode | int = 48000,
+    fps: vs.VideoNode | Fraction = Fraction(24000, 1001),
+) -> int:
     """
     Converts a frame number to a sample number
 
@@ -210,7 +239,11 @@ def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: 
     """
     if frame == 0:
         return 0
-    sample_rate = sample_rate.sample_rate if isinstance(sample_rate, vs.AudioNode) else sample_rate
+    sample_rate = (
+        sample_rate.sample_rate
+        if isinstance(sample_rate, vs.AudioNode)
+        else sample_rate
+    )
     fps = Fraction(fps.fps_num, fps.fps_den) if isinstance(fps, vs.VideoNode) else fps
     return int(sample_rate * (fps.denominator / fps.numerator) * frame)
 
