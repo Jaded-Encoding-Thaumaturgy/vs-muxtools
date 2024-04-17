@@ -2,7 +2,7 @@ import shutil as sh
 from pathlib import Path
 from typing import Callable
 from fractions import Fraction
-from vstools import vs, core, initialize_clip, copy_signature
+from vstools import vs, core, initialize_clip, copy_signature, KwargsT
 from muxtools import (
     Trim,
     PathLike,
@@ -16,6 +16,7 @@ from muxtools import (
     get_absolute_track,
     TrackType,
     GlobSearch,
+    error,
 )
 
 
@@ -25,30 +26,38 @@ __all__ = ["src_file", "SRC_FILE", "FileInfo", "src", "frames_to_samples", "f2s"
 class src_file:
     file: Path
     force_lsmas: bool = False
+    force_bs: bool = False
     trim: Trim = None
     idx: Callable[[str], vs.VideoNode] | None = None
     idx_args = {}
 
     def __init__(
-        self, file: PathLike | GlobSearch, force_lsmas: bool = False, trim: Trim = None, idx: Callable[[str], vs.VideoNode] | None = None, **kwargs
+        self,
+        file: PathLike | GlobSearch,
+        force_lsmas: bool = False,
+        trim: Trim = None,
+        idx: Callable[[str], vs.VideoNode] | None = None,
+        force_bs: bool = False,
+        **kwargs,
     ):
         """
         Custom `FileInfo` kind of thing for convenience
 
         :param file:            Either a string based filepath or a Path object
-        :param force_lsmas:     Forces the use of lsmas inside of `vodesfunc.src`
+        :param force_lsmas:     Forces the use of lsmas inside of the default indexer function.
         :param trim:            Can be a single trim or a sequence of trims.
         :param idx:             Indexer for the input file. Pass a function that takes a string in and returns a vs.VideoNode.
-                                Defaults to `vodesfunc.src`
+        :param force_bs:        Forces the use of bestsource inside of the default indexer function.
         """
         self.file = ensure_path_exists(file, self)
         self.force_lsmas = force_lsmas
+        self.force_bs = force_bs
         self.trim = trim
         self.idx = idx
         self.idx_args = kwargs
 
     def __index_clip(self):
-        indexed = self.idx(str(self.file.resolve())) if self.idx else src(str(self.file.resolve()), self.force_lsmas, **self.idx_args)
+        indexed = self.idx(str(self.file.resolve())) if self.idx else src(str(self.file.resolve()), self.force_lsmas, self.force_bs, **self.idx_args)
         cut = indexed
         if self.trim:
             self.trim = list(self.trim)
@@ -133,55 +142,47 @@ SRC_FILE = src_file
 FileInfo = src_file
 
 
-def src(filePath: PathLike, force_lsmas: bool = False, delete_dgi_log: bool = True, **kwargs) -> vs.VideoNode:
+def src(filePath: PathLike, force_lsmas: bool = False, force_bs: bool = False, **kwargs: KwargsT) -> vs.VideoNode:
     """
-    Uses dgindex as Source and requires dgindexnv in path
-    to generate files if they don't exist.
+    Uses lsmas for previewing and bestsource otherwise.
+    Still supports dgi files directly if dgdecodenv is installed to not break existing scripts.
 
     :param filepath:        Path to video or dgi file
-    :param force_lsmas:     Skip dgsource entirely and use lsmas
-    :param delete_dgi_log:  Delete the .log files dgindexnv creates
+    :param force_lsmas:     Force the use of lsmas.LWLibavSource
+    :param force_bs:        Force the use of bs.VideoSource. This takes priority over the force_lsmas param.
+    :param kwargs:          Other arguments you may or may not wanna pass to the indexer.
     :return:                Video Node
     """
     filePath = ensure_path_exists(filePath, src)
-    filePath = str(filePath)
-    if filePath.lower().endswith(".dgi"):
-        return core.lazy.dgdecodenv.DGSource(filePath, **kwargs)
+    dgiFile = filePath.with_suffix(".dgi")
+    if filePath.suffix.lower() == ".dgi" or dgiFile.exists():
+        if not hasattr(core, "dgdecodenv"):
+            raise error("Trying to use a dgi file without dgdecodenv installed.", src)
+        return core.lazy.dgdecodenv.DGSource(str(filePath.resolve()) if not dgiFile.exists() else str(dgiFile.resolve()), **kwargs)
 
-    forceFallBack = sh.which("dgindexnv") is None or not hasattr(core, "dgdecodenv")
+    has_bestsource, has_lsmas = hasattr(core, "bs"), hasattr(core, "lsmas")
+    if not has_bestsource and not has_lsmas:
+        raise error("Neither bestsource nor lsmas are installed.", src)
+    if force_lsmas and not has_lsmas and not force_bs:
+        raise error("You cannot force lsmas indexing without lsmas installed!", src)
+    if force_bs and not has_bestsource:
+        raise error("You cannot force bestsource indexing without bestsource installed!", src)
 
-    if not force_lsmas:
-        import pymediainfo as pym
+    is_previewing = False
+    try:
+        from vspreview import is_preview
 
-        parsed = pym.MediaInfo.parse(filePath, parse_speed=0.25)
-        trackmeta = parsed.video_tracks[0].to_data()
-        format = trackmeta.get("format")
-        bitdepth = trackmeta.get("bit_depth")
-        if format is not None and bitdepth is not None:
-            if str(format).strip().lower() == "avc" and int(bitdepth) > 8:
-                forceFallBack = True
-                warn(f"Falling back to lsmas for Hi10 ({Path(filePath).name})", src)
-            elif str(format).strip().lower() == "ffv1":
-                forceFallBack = True
-                warn(f"Falling back to lsmas for FFV1 ({Path(filePath).name})", src)
+        is_previewing = is_preview()
+    except:
+        pass
 
-    if force_lsmas or forceFallBack:
-        return core.lsmas.LWLibavSource(filePath, **kwargs)
-
-    path = Path(filePath)
-    dgiFile = path.with_suffix(".dgi")
-
-    if dgiFile.exists():
-        return core.dgdecodenv.DGSource(dgiFile.resolve(True), **kwargs)
+    if (is_previewing or force_lsmas) and not force_bs and has_lsmas:
+        info(f"Indexing '{filePath.name}' using lsmas LWLibavSource", src)
+        return core.lazy.lsmas.LWLibavSource(str(filePath.resolve()), **kwargs)
     else:
-        info("Generating dgi file...", src)
-        import os
-        import subprocess as sub
-
-        sub.Popen(f'dgindexnv -i "{path.name}" -h -o "{dgiFile.name}" -e', shell=True, stdout=sub.DEVNULL, cwd=path.parent.resolve(True)).wait()
-        if path.with_suffix(".log").exists() and delete_dgi_log:
-            os.remove(path.with_suffix(".log").resolve(True))
-        return core.dgdecodenv.DGSource(dgiFile.resolve(True), **kwargs)
+        info(f"Indexing '{filePath.name}' using bestsource.", src)
+        show_progress = kwargs.pop("showprogress", True)
+        return core.lazy.bs.VideoSource(str(filePath.resolve()), showprogress=show_progress, **kwargs)
 
 
 def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: vs.VideoNode | Fraction = Fraction(24000, 1001)) -> int:
