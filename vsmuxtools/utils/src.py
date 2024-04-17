@@ -60,7 +60,12 @@ class src_file:
         indexed = (
             self.idx(str(self.file.resolve()))
             if self.idx
-            else src(str(self.file.resolve()), self.force_lsmas, **self.idx_args)
+            else src(
+                str(self.file.resolve()),
+                self.force_lsmas,
+                self.force_bs,
+                **self.idx_args,
+            )
         )
         cut = indexed
         if self.trim:
@@ -174,7 +179,7 @@ def src(
 
     forceFallBack = sh.which("dgindexnv") is None or not hasattr(core, "dgdecodenv")
 
-    if not force_lsmas:
+    if not force_lsmas or not force_bs:
         import pymediainfo as pym
 
         parsed = pym.MediaInfo.parse(filePath, parse_speed=0.25)
