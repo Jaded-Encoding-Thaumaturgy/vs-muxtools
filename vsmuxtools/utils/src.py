@@ -118,12 +118,9 @@ class src_file:
         """
         Indexes the specified audio track from the input file.
         """
-        args = dict(exact=True)
-        args.update(**kwargs)
-
         absolute = get_absolute_track(self.file, track, TrackType.AUDIO)
 
-        return core.bs.AudioSource(str(self.file.resolve()), absolute.track_id, **args)
+        return core.bs.AudioSource(str(self.file.resolve()), absolute.track_id, **kwargs)
 
     def get_audio_trimmed(self, track: int = 0, **kwargs) -> vs.AudioNode:
         """
