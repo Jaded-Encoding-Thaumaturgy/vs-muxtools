@@ -120,7 +120,7 @@ def settings_builder_x264(
     qcomp: float = 0.7,
     psy_rd: float = 1.0,
     psy_trellis: float = 0.0,
-    trellis: int = 0,
+    trellis: int | None = None,
     aq_strength: float = 0.8,
     aq_mode: int = 3,
     ref: int = 16,
@@ -139,7 +139,9 @@ def settings_builder_x264(
     # Simple insert values
     settings = f" --preset {preset} --crf {crf} --bframes {bframes} --ref {ref} --rc-lookahead {rc_lookahead} --me {me} --merange {merange}"
     settings += f" --aq-mode {aq_mode} --aq-strength {aq_strength} --qcomp {qcomp}"
-    settings += f" --psy-rd {psy_rd}:{psy_trellis} --trellis {trellis} --subme {subme} --threads {threads}"
+    settings += f" --psy-rd {psy_rd}:{psy_trellis} --subme {subme} --threads {threads}"
+    if trellis is not None:
+        settings += f" --trellis {trellis}"
 
     # Less simple
     settings += f" {'--no-mbtree' if not mbtree else ''} {'--no-dct-decimate' if not dct_decimate else ''}"
