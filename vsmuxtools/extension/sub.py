@@ -54,7 +54,7 @@ class SubFile(MTSubFile):
             else:
                 file = ensure_path_exists(source, self)
             # Unused variable, just used to have a simple validation
-            track = get_absolute_track(file, 0, TrackType.VIDEO, self)
+            track = get_absolute_track(file, 0, TrackType.VIDEO, self)  # noqa: F841
             ffprobe = get_executable("ffprobe")
             args = [ffprobe, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=r_frame_rate : stream_tags", str(file)]
             out = subprocess.run(args, capture_output=True, text=True)

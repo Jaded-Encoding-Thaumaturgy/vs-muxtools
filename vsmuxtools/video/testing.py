@@ -1,4 +1,3 @@
-from pathlib import Path
 import re
 from vstools import vs
 from shlex import split

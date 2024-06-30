@@ -1,6 +1,5 @@
 from pathlib import Path
 from vstools import vs
-from typing import overload
 from fractions import Fraction
 
 from muxtools import do_audio as mt_audio

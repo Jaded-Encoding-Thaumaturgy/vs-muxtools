@@ -1,4 +1,3 @@
-import shutil as sh
 from pathlib import Path
 from typing import Callable
 from fractions import Fraction
@@ -8,7 +7,6 @@ from muxtools import (
     PathLike,
     parse_m2ts_path,
     ensure_path_exists,
-    warn,
     info,
     get_workdir,
     get_temp_workdir,
