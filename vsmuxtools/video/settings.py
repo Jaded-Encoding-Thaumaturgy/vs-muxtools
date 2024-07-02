@@ -183,15 +183,16 @@ def file_or_default(file: PathLike, default: str, no_warn: bool = False) -> tupl
     return default, False
 
 
-def get_props(clip: vs.VideoNode, x265: bool) -> dict[str, str]:
+def get_props(clip: vs.VideoNode, x265: bool, ffmpeg: bool = False) -> dict[str, str]:
     crange = ColorRange.from_video(clip)
     is_limited = crange.is_limited
     c_range = crange.string if x265 else ("tv" if is_limited else "pc")
     bits = clip.format.bits_per_sample
     props = clip.get_frame(0).props
+    chromaloc = ChromaLocation.from_video(clip)
     return {
         "depth": str(bits),
-        "chromaloc": str(int(ChromaLocation.from_video(clip))),
+        "chromaloc": str(int(chromaloc)) if not ffmpeg else chromaloc.string.replace("_", ""),
         "range": c_range,
         "transfer": Transfer.from_video(clip).string,
         "colormatrix": Matrix.from_video(clip).string,

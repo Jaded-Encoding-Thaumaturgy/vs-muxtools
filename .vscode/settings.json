@@ -4,6 +4,10 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
+    "[toml]": {
+        "editor.formatOnType": false,
+        "editor.formatOnSave": true,
+    },
     "ruff.lint.enable": true,
     "ruff.lint.args": [
         "--config",
