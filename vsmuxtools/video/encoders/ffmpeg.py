@@ -89,8 +89,7 @@ class ProRes(FFMpegEncoder):
         args = self._default_args() + input_args + ["-c:v", "prores_ks"] + prop_args + self.get_custom_args() + ["-profile", str(profile)]
         args.append(str(out))
 
-        print(args)
-
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         clip.output(process.stdin, y4m=True, progress_update=lambda x, y: self._update_progress(x, y))
         process.communicate()
+        return VideoFile(out)
