@@ -5,7 +5,7 @@ from muxtools import VideoFile, PathLike, make_output, warn, error
 from muxtools.utils.dataclass import allow_extra, dataclass
 
 from .base import FFMpegEncoder
-from vsmuxtools.utils.types import LosslessPreset, ProResProfile
+from .types import LosslessPreset, ProResProfile
 
 __all__ = ["FFV1", "ProRes"]
 

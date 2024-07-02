@@ -6,8 +6,8 @@ from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get
 from muxtools.utils.dataclass import dataclass, allow_extra
 
 from .base import SupportsQP, VideoEncoder
-from vsmuxtools.utils.types import LosslessPreset
-from vsmuxtools.video.settings import shift_zones, zones_to_args
+from .types import LosslessPreset
+from ..settings import shift_zones, zones_to_args
 
 __all__ = ["x264", "x265", "LosslessX264"]
 

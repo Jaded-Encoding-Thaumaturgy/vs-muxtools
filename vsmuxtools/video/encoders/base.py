@@ -6,10 +6,10 @@ from abc import ABC, abstractmethod
 from muxtools import ensure_path_exists, VideoFile, PathLike, make_output, info, warn, error, get_executable
 from muxtools.utils.dataclass import CLIKwargs
 
-from vsmuxtools.utils.types import Zone
+from .types import Zone
+from ..resumable import merge_parts, parse_keyframes
+from ..settings import file_or_default, fill_props, props_args, sb264, sb265, get_props
 from vsmuxtools.utils.src import generate_qp_file, src_file
-from vsmuxtools.video.resumable import merge_parts, parse_keyframes
-from vsmuxtools.video.settings import file_or_default, fill_props, props_args, sb264, sb265, get_props
 
 __all__ = ["VideoEncoder", "FFMpegEncoder", "SupportsQP"]
 
