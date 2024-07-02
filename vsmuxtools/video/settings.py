@@ -2,7 +2,7 @@ import re
 import os
 from muxtools import error, PathLike, ensure_path, warn
 from vstools import vs, Matrix, Primaries, Transfer, ColorRange, ChromaLocation
-from ..utils.types import Zone
+from .encoders.types import Zone
 
 __all__ = ["settings_builder_x265", "settings_builder_x264", "sb", "sb265", "sb264"]
 
