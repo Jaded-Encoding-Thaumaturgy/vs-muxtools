@@ -6,7 +6,7 @@ from .base import VideoEncoder
 from .ffmpeg import ProRes
 from .types import ProResProfile
 
-from muxtools import VideoFile, PathLike, error
+from muxtools import VideoFile, PathLike, error, get_workdir
 from muxtools.utils.dataclass import dataclass, allow_extra
 
 __all__ = ["IntermediaryEncoder", "ProResIntermediary"]
@@ -30,7 +30,7 @@ class IntermediaryEncoder(VideoEncoder):
     indexer: Callable[[str], vs.VideoNode] | None = None
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> list[VideoFile]:
-        intermediary = self.encoder.encode(clip, "intermediary")
+        intermediary = self.encoder.encode(clip, get_workdir() / "intermediary")
         from vsmuxtools import src as src_index
 
         index_clip = self.indexer(str(intermediary.file)) if self.indexer else src_index(intermediary.file, force_lsmas=True)
