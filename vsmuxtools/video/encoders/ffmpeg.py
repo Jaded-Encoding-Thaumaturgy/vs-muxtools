@@ -44,6 +44,7 @@ class FFV1(FFMpegEncoder):
         args.append(str(out))
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
+        self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True, progress_update=lambda x, y: self._update_progress(x, y))
         process.communicate()
         return VideoFile(out)
@@ -90,6 +91,7 @@ class ProRes(FFMpegEncoder):
         args.append(str(out))
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
+        self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True, progress_update=lambda x, y: self._update_progress(x, y))
         process.communicate()
         return VideoFile(out)

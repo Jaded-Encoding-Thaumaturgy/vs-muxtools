@@ -60,6 +60,7 @@ class x264(SupportsQP):
         args.extend(self.get_custom_args() + ["--demuxer", "y4m", "-"])
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
+        self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True, progress_update=lambda x, y: self._update_progress(x, y))
         process.communicate()
         return out
@@ -122,6 +123,7 @@ class x265(SupportsQP):
         args.extend(self.get_custom_args() + ["--y4m", "-"])
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
+        self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True, progress_update=lambda x, y: self._update_progress(x, y))
         process.communicate()
         return out
@@ -180,6 +182,8 @@ class SVTAV1(VideoEncoder):
 
     def __post_init__(self):
         self.executable = get_executable("svtav1encapp")
+        if self.get_process_affinity() is False:
+            self.affinity = []
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         from vsmuxtools.video.settings import get_props
@@ -209,9 +213,7 @@ class SVTAV1(VideoEncoder):
         # fmt: on
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
-        from psutil import Process
-
-        Process(process.pid).cpu_affinity([])
+        self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True)
         process.communicate()
         return VideoFile(output)
