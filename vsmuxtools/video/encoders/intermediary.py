@@ -1,6 +1,6 @@
 from typing import Union
 from collections.abc import Callable
-from vstools import vs, core, GenericVSFunction, get_video_format, depth
+from vstools import vs, GenericVSFunction, get_video_format, depth
 
 from .base import VideoEncoder
 from .ffmpeg import ProRes
