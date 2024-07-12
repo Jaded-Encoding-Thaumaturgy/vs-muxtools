@@ -9,7 +9,7 @@ from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
 from ..settings import shift_zones, zones_to_args
 
-__all__ = ["x264", "x265", "LosslessX264"]
+__all__ = ["x264", "x265", "LosslessX264", "SVTAV1"]
 
 
 @dataclass(config=allow_extra)
@@ -163,3 +163,55 @@ class LosslessX264(VideoEncoder):
         avc._update_settings(clip, False)
         avc._encode_clip(clip, out, None, 0)
         return VideoFile(out)
+
+
+@dataclass(config=allow_extra)
+class SVTAV1(VideoEncoder):
+    """
+    Uses SVtAv1EncApp to encode clip to a av1 stream.\n
+    Do not use this for high fidelity encoding.
+
+    :param preset:      Encoder preset. Lower = slower & better
+                        The range is -1 to 13 for the regular SVTAV1 and -3 to 13 for SVT-AV1-PSY
+    """
+
+    preset: int = 3
+    chroma_offset: int = -2
+
+    def __post_init__(self):
+        self.executable = get_executable("svtav1encapp")
+
+    def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
+        from vsmuxtools.video.settings import get_props
+
+        clip_props = get_props(clip, False, True, True)
+        output = make_output("svtav1", ext="ivf", user_passed=outfile)
+        args = [self.executable, "-i", "-", "--output", str(output), "--preset", str(self.preset)]
+        # fmt:off
+        if self.chroma_offset != 0:
+            offset = str(self.chroma_offset)
+            args.extend([
+                "--chroma-u-dc-qindex-offset", offset,
+                "--chroma-u-ac-qindex-offset", offset,
+                "--chroma-v-dc-qindex-offset", offset,
+                "--chroma-v-ac-qindex-offset", offset,
+            ])
+        args.extend([
+            "--fps-num", clip_props.get("fps_num"),
+            "--fps-denom", clip_props.get("fps_den"),
+            "--input-depth", clip_props.get("depth"),
+            "--chroma-sample-position", clip_props.get("chromaloc"),
+            "--color-primaries", clip_props.get("primaries"),
+            "--transfer-characteristics", clip_props.get("transfer"),
+            "--matrix-coefficients", clip_props.get("colormatrix"),
+            "--color-range", clip_props.get("range")
+        ] + self.get_custom_args())
+        # fmt: on
+
+        process = subprocess.Popen(args, stdin=subprocess.PIPE)
+        from psutil import Process
+
+        Process(process.pid).cpu_affinity([])
+        clip.output(process.stdin, y4m=True)
+        process.communicate()
+        return VideoFile(output)
