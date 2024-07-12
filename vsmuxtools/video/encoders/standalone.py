@@ -61,7 +61,7 @@ class x264(SupportsQP):
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
-        clip.output(process.stdin, y4m=True, progress_update=lambda x, y: self._update_progress(x, y))
+        clip.output(process.stdin, y4m=True)
         process.communicate()
         return out
 
@@ -124,7 +124,7 @@ class x265(SupportsQP):
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
-        clip.output(process.stdin, y4m=True, progress_update=lambda x, y: self._update_progress(x, y))
+        clip.output(process.stdin, y4m=True)
         process.communicate()
         return out
 
