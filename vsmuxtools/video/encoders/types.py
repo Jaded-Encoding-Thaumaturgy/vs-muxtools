@@ -2,7 +2,8 @@ from enum import IntEnum
 
 __all__ = ["LosslessPreset", "ProResProfile"]
 
-Zone = tuple[int, int, float | str] | tuple[int, int, str, float | int | str]
+ZoneFrame = tuple[int, None]
+Zone = tuple[ZoneFrame, ZoneFrame, float | str] | tuple[ZoneFrame, ZoneFrame, str, float | int | str]
 
 
 class LosslessPreset(IntEnum):

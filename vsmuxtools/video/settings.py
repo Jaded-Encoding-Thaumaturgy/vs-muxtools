@@ -46,14 +46,20 @@ def norm_zones(clip_or_max_frames: vs.VideoNode | int, zones: Zone | list[Zone] 
 
         start, end, *params = zone
 
-        if start < 0:
+        if start is None:
+            start = 0
+        elif isinstance(start, int) and start < 0:
             start = max_frames - abs(start)
 
-        if end < 0:
+        if end is None:
+            end = max_frames - 1
+        elif isinstance(end, int) and end < 0:
             end = max_frames - abs(end)
 
         if start > end:
             raise CustomValueError(f"Zone '{zone}' start frame after end frame!", norm_zones, f"{start} > {end}")
+
+        assert isinstance(start, int) and isinstance(end, int)
 
         newzones.append(cast(Zone, (start, min(end, max_frames - 1), *params)))
 
