@@ -7,7 +7,7 @@ from muxtools.utils.dataclass import dataclass, allow_extra
 
 from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
-from ..settings import shift_zones, zones_to_args
+from ..settings import shift_zones, zones_to_args, norm_zones
 
 __all__ = ["x264", "x265", "LosslessX264", "SVTAV1"]
 
@@ -54,6 +54,7 @@ class x264(SupportsQP):
         if self.settings:
             args.extend(self.settings if isinstance(self.settings, list) else shlex.split(self.settings))
         if self.zones:
+            self.zones = norm_zones(clip, self.zones)
             if start_frame:
                 self.zones = shift_zones(self.zones, start_frame)
             args.extend(zones_to_args(self.zones, False))
@@ -117,6 +118,7 @@ class x265(SupportsQP):
         if self.settings:
             args.extend(self.settings if isinstance(self.settings, list) else shlex.split(self.settings))
         if self.zones:
+            self.zones = norm_zones(clip, self.zones)
             if start_frame:
                 self.zones = shift_zones(self.zones, start_frame)
             args.extend(zones_to_args(self.zones, True))

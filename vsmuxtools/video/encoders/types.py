@@ -1,8 +1,10 @@
 from enum import IntEnum
+from typing import Union
 
 __all__ = ["LosslessPreset", "ProResProfile"]
 
-Zone = tuple[int, int, float | str] | tuple[int, int, str, float | int | str]
+ZoneFrame = Union[int, None]
+Zone = tuple[ZoneFrame, ZoneFrame, float | str] | tuple[ZoneFrame, ZoneFrame, str, float | int | str]
 
 
 class LosslessPreset(IntEnum):

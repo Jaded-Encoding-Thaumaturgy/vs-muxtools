@@ -153,7 +153,7 @@ class SupportsQP(VideoEncoder):
         start_frame = sum(keyframes)
         info(f"Starting encode at frame {start_frame}")
 
-        # TODO: Adjust existing zones to the new start frame
+        # TODO: Normalize and adjust existing zones to the new start frame
 
         clip = clip[start_frame:]
         self._encode_clip(clip, fout, self._get_qpfile(start_frame), start_frame)

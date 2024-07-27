@@ -1,7 +1,11 @@
-import re
 import os
-from muxtools import error, PathLike, ensure_path, warn
-from vstools import vs, Matrix, Primaries, Transfer, ColorRange, ChromaLocation
+import re
+from typing import cast
+
+from muxtools import PathLike, ensure_path, error, warn
+from vstools import (ChromaLocation, ColorRange, CustomValueError, Matrix,
+                     Primaries, Transfer, vs)
+
 from .encoders.types import Zone
 
 __all__ = ["settings_builder_x265", "settings_builder_x264", "sb", "sb265", "sb264"]
@@ -14,6 +18,47 @@ def is_full_zone(zone: Zone) -> bool:
         return True
     else:
         return False
+
+
+def norm_zones(clip_or_max_frames: vs.VideoNode | int, zones: Zone | list[Zone] | None) -> list[Zone]:
+    """
+    Normalize zones to be within the clip's range.
+
+    :param clip_or_max_frames:      The clip or a max frame count to normalize to.
+    :param zones:                   The zones to normalize.
+
+    :return:                        The normalized zones.
+    """
+
+    if not zones:
+        return []
+
+    max_frames = clip_or_max_frames if isinstance(clip_or_max_frames, int) else clip_or_max_frames.num_frames
+
+    if not isinstance(zones, list):
+        zones = [zones]
+
+    newzones = list[Zone]()
+
+    for zone in zones:
+        start, end, *params = zone
+
+        if start is None:
+            start = 0
+        elif isinstance(start, int) and start < 0:
+            start = max_frames - abs(start)
+
+        if end is None:
+            end = max_frames - 1
+        elif isinstance(end, int) and end < 0:
+            end = max_frames - abs(end)
+
+        if start > end:
+            raise CustomValueError(f"Zone '{zone}' start frame is after end frame!", norm_zones, f"{start} > {end}")
+
+        newzones.append(cast(Zone, (start, min(end, max_frames - 1), *params)))  # type:ignore[type-var]
+
+    return newzones
 
 
 def shift_zones(zones: Zone | list[Zone] | None, start_frame: int = 0) -> list[Zone] | None:
