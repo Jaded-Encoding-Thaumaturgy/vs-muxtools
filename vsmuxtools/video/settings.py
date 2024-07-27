@@ -41,9 +41,6 @@ def norm_zones(clip_or_max_frames: vs.VideoNode | int, zones: Zone | list[Zone] 
     newzones = list[Zone]()
 
     for zone in zones:
-        if not is_full_zone(zone):
-            continue
-
         start, end, *params = zone
 
         if start is None:
