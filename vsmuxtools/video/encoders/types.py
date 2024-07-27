@@ -1,8 +1,9 @@
 from enum import IntEnum
+from typing import Union
 
 __all__ = ["LosslessPreset", "ProResProfile"]
 
-ZoneFrame = tuple[int, None]
+ZoneFrame = Union[int, None]
 Zone = tuple[ZoneFrame, ZoneFrame, float | str] | tuple[ZoneFrame, ZoneFrame, str, float | int | str]
 
 
