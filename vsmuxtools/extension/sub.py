@@ -17,7 +17,8 @@ from muxtools import (
     MkvTrack,
 )
 from muxtools import SubFile as MTSubFile
-from muxtools.subtitle.sub import SubFileSelf
+from muxtools.subtitle import _Line
+from muxtools.subtitle.sub import SubFileSelf, LINES
 
 __all__ = ["SubFile"]
 
@@ -78,26 +79,27 @@ class SubFile(MTSubFile):
             if not fps or not frames:
                 raise error(f"Could not parse frames or fps from file '{file.stem}'!", self)
 
-        cutoff = frame_to_timedelta(frames + 1, fps)
-        removed = 0
-        trimmed = 0
-        doc = self._read_doc()
-        lines: list = doc.events
-        for line in lines:
-            if line.start > cutoff:
-                lines.remove(line)
-                removed += 1
-                continue
-            if line.end > cutoff:
-                line.end = frame_to_timedelta(frames, fps)
-                trimmed += 1
+        cutoff = frame_to_timedelta(frames + 1, fps, compensate=True)
 
-        if removed or trimmed:
-            if removed:
-                debug(f"Removed {removed} line{'s' if removed != 1 else ''} that started past the video", self)
-            if trimmed:
-                debug(f"Trimmed {trimmed} line{'s' if trimmed != 1 else ''} that extended past the video", self)
-            doc.events = lines
-            self.__update_doc(doc)
+        def filter_lines(lines: LINES):
+            removed = 0
+            trimmed = 0
+            new_list = list[_Line]()
+            for line in lines:
+                if line.start > cutoff:
+                    removed += 1
+                    continue
+                if line.end > cutoff:
+                    line.end = frame_to_timedelta(frames, fps, compensate=True)
+                    trimmed += 1
+                new_list.append(line)
 
-        return self
+            if removed or trimmed:
+                if removed:
+                    debug(f"Removed {removed} line{'s' if removed != 1 else ''} that started past the video", self)
+                if trimmed:
+                    debug(f"Trimmed {trimmed} line{'s' if trimmed != 1 else ''} that extended past the video", self)
+            
+            return new_list
+
+        return self.manipulate_lines(filter_lines)
