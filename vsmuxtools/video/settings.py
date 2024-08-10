@@ -3,8 +3,7 @@ import re
 from typing import cast
 
 from muxtools import PathLike, ensure_path, error, warn
-from vstools import (ChromaLocation, ColorRange, CustomValueError, Matrix,
-                     Primaries, Transfer, vs)
+from vstools import ChromaLocation, ColorRange, CustomValueError, Matrix, Primaries, Transfer, vs
 
 from .encoders.types import Zone
 

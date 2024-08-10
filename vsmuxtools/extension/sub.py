@@ -99,7 +99,7 @@ class SubFile(MTSubFile):
                     debug(f"Removed {removed} line{'s' if removed != 1 else ''} that started past the video", self)
                 if trimmed:
                     debug(f"Trimmed {trimmed} line{'s' if trimmed != 1 else ''} that extended past the video", self)
-            
+
             return new_list
 
         return self.manipulate_lines(filter_lines)

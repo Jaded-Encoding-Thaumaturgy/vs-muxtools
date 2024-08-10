@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 from fractions import Fraction
 from vstools import vs, core, initialize_clip, copy_signature, KwargsT
 from muxtools import (
@@ -15,6 +15,7 @@ from muxtools import (
     TrackType,
     GlobSearch,
     error,
+    sanitize_trims,
 )
 
 
@@ -22,7 +23,7 @@ __all__ = ["src_file", "SRC_FILE", "FileInfo", "src", "frames_to_samples", "f2s"
 
 
 class src_file:
-    file: Path
+    file: Path | list[Path]
     force_lsmas: bool = False
     force_bs: bool = False
     trim: Trim = None
@@ -31,7 +32,7 @@ class src_file:
 
     def __init__(
         self,
-        file: PathLike | GlobSearch,
+        file: PathLike | GlobSearch | Sequence[PathLike],
         force_lsmas: bool = False,
         trim: Trim = None,
         idx: Callable[[str], vs.VideoNode] | None = None,
@@ -47,15 +48,24 @@ class src_file:
         :param idx:             Indexer for the input file. Pass a function that takes a string in and returns a vs.VideoNode.
         :param force_bs:        Forces the use of bestsource inside of the default indexer function.
         """
-        self.file = ensure_path_exists(file, self)
+        self.file = ensure_path_exists(file, self) if not isinstance(file, Sequence) else [ensure_path_exists(f, self) for f in file]
         self.force_lsmas = force_lsmas
         self.force_bs = force_bs
         self.trim = trim
         self.idx = idx
         self.idx_args = kwargs
 
+    def __call_indexer(self, fileIn: Path):
+        if self.idx:
+            return self.idx(str(fileIn.resolve()))
+        else:
+            return src(fileIn, self.force_lsmas, self.force_bs, **self.idx_args)
+
     def __index_clip(self):
-        indexed = self.idx(str(self.file.resolve())) if self.idx else src(str(self.file.resolve()), self.force_lsmas, self.force_bs, **self.idx_args)
+        if isinstance(self.file, list):
+            indexed = core.std.Splice([self.__call_indexer(f) for f in self.file])
+        else:
+            indexed = self.__call_indexer(self.file)
         cut = indexed
         if self.trim:
             self.trim = list(self.trim)
@@ -73,7 +83,7 @@ class src_file:
                     cut = indexed[self.trim[0] : self.trim[1]]
             self.trim = tuple(self.trim)
 
-        if self.file.suffix.lower() == ".dgi":
+        if not isinstance(self.file, list) and self.file.suffix.lower() == ".dgi":
             if self.file.with_suffix(".m2ts").exists():
                 self.file = self.file.with_suffix(".m2ts")
             else:
@@ -114,11 +124,16 @@ class src_file:
 
     def get_audio(self, track: int = 0, **kwargs) -> vs.AudioNode:
         """
-        Indexes the specified audio track from the input file.
+        Indexes the specified audio track from the input file(s).
         """
-        absolute = get_absolute_track(self.file, track, TrackType.AUDIO)
+        file = self.file if isinstance(self.file, list) else [self.file]
 
-        return core.bs.AudioSource(str(self.file.resolve()), absolute.track_id, **kwargs)
+        nodes = list[vs.AudioNode]()
+        for f in file:
+            absolute = get_absolute_track(f, track, TrackType.AUDIO)
+            nodes.append(core.bs.AudioSource(str(f.resolve()), absolute, **kwargs))
+
+        return nodes[0] if len(nodes) == 1 else core.std.AudioSplice(nodes)
 
     def get_audio_trimmed(self, track: int = 0, **kwargs) -> vs.AudioNode:
         """
@@ -131,6 +146,35 @@ class src_file:
             else:
                 node = node[f2s(self.trim[0], node, self.src) : f2s(self.trim[1], node, self.src)]
         return node
+
+    @staticmethod
+    def BDMV(
+        root_dir: PathLike,
+        playlist: int = 0,
+        entries: int | list[int] | Trim | None = None,
+        angle: int = 0,
+        trim: Trim | None = None,
+        force_lsmas: bool = False,
+        force_bs: bool = False,
+        idx: Callable[[str], vs.VideoNode] | None = None,
+        **kwargs: KwargsT,
+    ) -> "src_file":
+        root_dir = ensure_path_exists(root_dir, "BDMV", True)
+        mpls = core.mpls.Read(str(root_dir), playlist, angle)
+        clips: list[str] = mpls["clip"]
+        if entries is not None:
+            if isinstance(entries, int):
+                clips = clips[entries]
+            elif isinstance(entries, list):
+                entries = sanitize_trims(entries)
+            else:
+                if entries[0] is None and entries[1]:
+                    clips = clips[: entries[1]]
+                elif entries[1] is None:
+                    clips = clips[entries[0] :]
+                else:
+                    clips = clips[entries[0] : entries[1]]
+        return src_file(clips, force_lsmas, trim, idx, force_bs, **kwargs)
 
 
 SRC_FILE = src_file
