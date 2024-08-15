@@ -48,7 +48,11 @@ class src_file:
         :param idx:             Indexer for the input file. Pass a function that takes a string in and returns a vs.VideoNode.
         :param force_bs:        Forces the use of bestsource inside of the default indexer function.
         """
-        self.file = ensure_path_exists(file, self) if not isinstance(file, Sequence) else [ensure_path_exists(f, self) for f in file]
+        self.file = (
+            [ensure_path_exists(f, self) for f in file]
+            if isinstance(file, Sequence) and not isinstance(file, str)
+            else ensure_path_exists(file, self)
+        )
         self.force_lsmas = force_lsmas
         self.force_bs = force_bs
         self.trim = trim
