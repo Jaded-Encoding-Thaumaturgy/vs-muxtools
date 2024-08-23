@@ -2,12 +2,14 @@ import shlex
 import subprocess
 from vstools import finalize_clip, vs
 from pathlib import Path
-from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path
+from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, get_workdir
 from muxtools.utils.dataclass import dataclass, allow_extra
 
 from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
 from ..settings import shift_zones, zones_to_args, norm_zones
+
+from vsmuxtools.utils.src import generate_keyframes, src_file
 
 __all__ = ["x264", "x265", "LosslessX264", "SVTAV1"]
 
@@ -175,17 +177,42 @@ class SVTAV1(VideoEncoder):
     Uses SVtAv1EncApp to encode clip to a av1 stream.\n
     Do not use this for high fidelity encoding.
 
-    :param preset:      Encoder preset. Lower = slower & better
-                        The range is -1 to 13 for the regular SVTAV1 and -3 to 13 for SVT-AV1-PSY
+    :param preset:          Encoder preset. Lower = slower & better
+                            The range is -1 to 13 for the regular SVTAV1 and -3 to 13 for SVT-AV1-PSY
+
+    :param chroma_offset:   QP Offset on chroma planes. May or may not lead to better looking chroma planes.
+
+    :param qp_clip:         Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
+                            It is highly recommended to do this so you can force keyframes.
     """
 
     preset: int = 3
     chroma_offset: int = -2
+    qp_clip: vs.VideoNode | src_file | None = None
 
     def __post_init__(self):
         self.executable = get_executable("svtav1encapp")
         if self.get_process_affinity() is False:
             self.affinity = []
+        if not self.qp_clip:
+            warn("It is highly recommended to force keyframes with this encoder!\nPlease pass a qp_clip param.", self, 2)
+
+    def _make_keyframes_config(self, clip: vs.VideoNode) -> Path | bool:
+        out = get_workdir() / "svt_keyframes.cfg"
+        if out.exists():
+            info("Reusing existing keyframes config.", self)
+            return out
+        info("Generating keyframes config file...", self)
+
+        keyframes = generate_keyframes(clip)
+        if not keyframes:
+            return False
+        keyframes_str = f"ForceKeyFrames : {'f,'.join([str(i) for i in keyframes])}f"
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(keyframes_str)
+
+        info("Done", self)
+        return out
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         from vsmuxtools.video.settings import get_props
@@ -193,6 +220,13 @@ class SVTAV1(VideoEncoder):
         clip_props = get_props(clip, False, True, True)
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
         args = [self.executable, "-i", "-", "--output", str(output), "--preset", str(self.preset)]
+        if self.qp_clip:
+            qp_clip = self.qp_clip if isinstance(self.qp_clip, vs.VideoNode) else self.qp_clip.src_cut
+            keyframes_config = self._make_keyframes_config(qp_clip)
+            if keyframes_config:
+                args.extend(["--keyint", "-1", "-c", str(keyframes_config)])
+            else:
+                warn("No keyframes found.", self)
         # fmt:off
         if self.chroma_offset != 0:
             offset = str(self.chroma_offset)
@@ -202,6 +236,7 @@ class SVTAV1(VideoEncoder):
                 "--chroma-v-dc-qindex-offset", offset,
                 "--chroma-v-ac-qindex-offset", offset,
             ])
+
         args.extend([
             "--fps-num", clip_props.get("fps_num"),
             "--fps-denom", clip_props.get("fps_den"),
