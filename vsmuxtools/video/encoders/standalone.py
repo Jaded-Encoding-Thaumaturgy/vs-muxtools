@@ -176,19 +176,21 @@ class LosslessX264(VideoEncoder):
 class SVTAV1(VideoEncoder):
     """
     Uses SVtAv1EncApp to encode clip to a av1 stream.\n
-    Do not use this for high fidelity encoding.
+    Do not use this for high fidelity encoding.\n
+    For better explanations of params, check the `--help` of the encoder or the gitlab wiki page.
 
     :param preset:          Encoder preset. Lower = slower & better
-                            The range is -1 to 13 for the regular SVTAV1 and -3 to 13 for SVT-AV1-PSY
-
-    :param chroma_offset:   QP Offset on chroma planes. May or may not lead to better looking chroma planes.
+                            The range is -1 to 13 for the regular SVTAV1 and -3 to 13 for SVTAV1-PSY
+    :param crf:             Constant rate factor, lower = better
+    :param tune:            The tuning metric. None = 2 for SVTAV1 and 3 for SVTAV1-PSY
 
     :param qp_clip:         Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
                             It is highly recommended to do this so you can force keyframes.
     """
 
-    preset: int = 3
-    chroma_offset: int = -2
+    preset: int = 4
+    crf: int = 15
+    tune: int | None = None
     qp_clip: vs.VideoNode | src_file | None = None
 
     def __post_init__(self):
@@ -220,7 +222,8 @@ class SVTAV1(VideoEncoder):
 
         clip_props = get_props(clip, False, True, True)
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
-        tags = dict[str, str](ENCODER=get_binary_version(self.executable, r"(SVT-AV1.+?v\d+.\d+.\d[^ ]+)", ["--version"]))
+        encoder = get_binary_version(self.executable, r"(SVT-AV1.+?v\d+.\d+.\d[^ ]+)", ["--version"])
+        tags = dict[str, str](ENCODER=encoder)
         args = [self.executable, "-i", "-", "--output", str(output), "--preset", str(self.preset)]
         if self.qp_clip:
             qp_clip = self.qp_clip if isinstance(self.qp_clip, vs.VideoNode) else self.qp_clip.src_cut
@@ -229,16 +232,16 @@ class SVTAV1(VideoEncoder):
                 args.extend(["--keyint", "-1", "-c", str(keyframes_config)])
             else:
                 warn("No keyframes found.", self)
-        # fmt:off
-        if self.chroma_offset != 0:
-            offset = str(self.chroma_offset)
-            args.extend([
-                "--chroma-u-dc-qindex-offset", offset,
-                "--chroma-u-ac-qindex-offset", offset,
-                "--chroma-v-dc-qindex-offset", offset,
-                "--chroma-v-ac-qindex-offset", offset,
-            ])
 
+        if self.crf:
+            args.extend(["--crf", str(self.crf)])
+
+        if self.tune is None:
+            self.tune = 3 if "psy" in encoder.lower() else 2
+
+        args.extend(["--tune", str(self.tune)])
+
+        # fmt:off
         args.extend(self.get_custom_args() + [
             "--fps-num", clip_props.get("fps_num"),
             "--fps-denom", clip_props.get("fps_den"),
