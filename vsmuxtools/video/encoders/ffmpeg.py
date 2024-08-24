@@ -47,7 +47,9 @@ class FFV1(FFMpegEncoder):
         self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True)
         process.communicate()
-        return VideoFile(out)
+
+        enc_settings = self.get_mediainfo_settings(shlex.split(self.settings) + self.get_custom_args(), False)
+        return VideoFile(out, tags=dict(ENCODER="ffmpeg FFV1", ENCODER_SETTINGS=enc_settings))
 
 
 @dataclass(config=allow_extra)
@@ -94,4 +96,5 @@ class ProRes(FFMpegEncoder):
         self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True)
         process.communicate()
-        return VideoFile(out)
+        enc_settings = self.get_mediainfo_settings(["-profile", str(profile)] + self.get_custom_args(), False)
+        return VideoFile(out, tags=dict(ENCODER="ffmpeg prores_ks", ENCODER_SETTINGS=enc_settings))

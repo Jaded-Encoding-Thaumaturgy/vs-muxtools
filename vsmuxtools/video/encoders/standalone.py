@@ -3,6 +3,7 @@ import subprocess
 from vstools import finalize_clip, vs
 from pathlib import Path
 from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, get_workdir
+from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
 
 from .base import SupportsQP, VideoEncoder
@@ -219,6 +220,7 @@ class SVTAV1(VideoEncoder):
 
         clip_props = get_props(clip, False, True, True)
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
+        tags = dict[str, str](ENCODER=get_binary_version(self.executable, r"(SVT-AV1.+?v\d+.\d+.\d[^ ]+)", ["--version"]))
         args = [self.executable, "-i", "-", "--output", str(output), "--preset", str(self.preset)]
         if self.qp_clip:
             qp_clip = self.qp_clip if isinstance(self.qp_clip, vs.VideoNode) else self.qp_clip.src_cut
@@ -237,7 +239,7 @@ class SVTAV1(VideoEncoder):
                 "--chroma-v-ac-qindex-offset", offset,
             ])
 
-        args.extend([
+        args.extend(self.get_custom_args() + [
             "--fps-num", clip_props.get("fps_num"),
             "--fps-denom", clip_props.get("fps_den"),
             "--input-depth", clip_props.get("depth"),
@@ -246,11 +248,12 @@ class SVTAV1(VideoEncoder):
             "--transfer-characteristics", clip_props.get("transfer"),
             "--matrix-coefficients", clip_props.get("colormatrix"),
             "--color-range", clip_props.get("range")
-        ] + self.get_custom_args())
+        ])
         # fmt: on
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True)
         process.communicate()
-        return VideoFile(output)
+        tags.update(ENCODER_SETTINGS=self.get_mediainfo_settings(args))
+        return VideoFile(output, tags=tags)
