@@ -13,7 +13,7 @@ from muxtools import (
     AutoTrimmer,
     FFMpeg,
     Trim,
-    warn,
+    danger,
     uniquify_path,
     get_workdir,
     ensure_path,
@@ -83,9 +83,9 @@ def do_audio(
     """
     if trims is not None:
         if isinstance(fileIn, src_file):
-            warn("Other trims passed will overwrite whatever your src_file has!", do_audio, 1)
+            danger("Other trims passed will overwrite whatever your src_file has!", do_audio, 1)
         if isinstance(fileIn, vs.AudioNode):
-            warn("Trims won't be applied if you pass an Audionode. Just do them yourself before this lol.", do_audio, 1)
+            danger("Trims won't be applied if you pass an Audionode. Just do them yourself before this lol.", do_audio, 1)
             trims = None
             trimmer = None
 
