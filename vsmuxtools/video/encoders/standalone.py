@@ -189,7 +189,7 @@ class SVTAV1(VideoEncoder):
     """
 
     preset: int = 4
-    crf: int = 15
+    crf: int | float = 15
     tune: int | None = None
     qp_clip: vs.VideoNode | src_file | None = None
 
