@@ -8,7 +8,8 @@ from muxtools.utils.dataclass import CLIKwargs
 
 from .types import Zone
 from ..resumable import merge_parts, parse_keyframes
-from ..settings import file_or_default, fill_props, props_args, sb264, sb265, get_props
+from ..settings import file_or_default, sb264, sb265
+from ..clip_metadata import fill_props, props_args, props_dict
 from vsmuxtools.utils.src import generate_qp_file, src_file
 
 __all__ = ["VideoEncoder", "FFMpegEncoder", "SupportsQP"]
@@ -57,7 +58,7 @@ class FFMpegEncoder(VideoEncoder, ABC):
         return formatname + "le" if videoformat.bits_per_sample > 8 else formatname
 
     def input_args(self, clip: vs.VideoNode) -> tuple[list[str], list[str]]:
-        props = get_props(clip, True, True)
+        props = props_dict(clip, True)
         # fmt: off
         prop_args = [
             "-r", f"{props.get('fps_num')}/{props.get('fps_den')}",

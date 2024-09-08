@@ -218,9 +218,9 @@ class SVTAV1(VideoEncoder):
         return out
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
-        from vsmuxtools.video.settings import get_props
+        from vsmuxtools.video.clip_metadata import props_dict, SVT_AV1_RANGES
 
-        clip_props = get_props(clip, False, True, True)
+        clip_props = props_dict(clip, False, SVT_AV1_RANGES)
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
         encoder = get_binary_version(self.executable, r"(SVT-AV1.+?v\d+.\d+.\d[^ ]+)", ["--version"])
         tags = dict[str, str](ENCODER=encoder)

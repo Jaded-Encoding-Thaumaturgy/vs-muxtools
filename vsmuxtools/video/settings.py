@@ -3,7 +3,7 @@ import re
 from typing import cast
 
 from muxtools import PathLike, ensure_path, error, warn
-from vstools import ChromaLocation, ColorRange, CustomValueError, Matrix, Primaries, Transfer, vs
+from vstools import CustomValueError, vs
 
 from .encoders.types import Zone
 
@@ -225,100 +225,3 @@ def file_or_default(file: PathLike, default: str, no_warn: bool = False) -> tupl
     if not no_warn:
         warn("Settings file wasn't found. Using default.", None, 3)
     return default, False
-
-
-# TODO: Refactor this garbage
-def get_props(clip: vs.VideoNode, x265: bool, ffmpeg: bool = False, svt: bool = False) -> dict[str, str]:
-    crange = ColorRange.from_video(clip)
-    is_limited = crange.is_limited
-    c_range = crange.string if x265 else ("tv" if is_limited else "pc")
-    c_range = c_range if not svt else ("studio" if is_limited else "full")
-    bits = clip.format.bits_per_sample
-    props = clip.get_frame(0).props
-    chromaloc = ChromaLocation.from_video(clip)
-    transfer = Transfer.from_video(clip)
-    matrix = Matrix.from_video(clip)
-    primaries = Primaries.from_video(clip)
-    return {
-        "depth": str(bits),
-        "chromaloc": str(int(chromaloc)) if not ffmpeg and not svt else chromaloc.string.replace("_", ""),
-        "range": c_range,
-        "transfer": transfer.string if not svt else str(int(transfer)),
-        "colormatrix": matrix.string if not svt else str(int(matrix)),
-        "primaries": primaries.string if not svt else str(int(primaries)),
-        "sarnum": str(props.get("_SARNum", 1)),
-        "sarden": str(props.get("_SARDen", 1)),
-        "keyint": str(round(clip.fps) * 10),
-        "min_keyint": str(round(clip.fps)),
-        "frames": str(clip.num_frames),
-        "fps_num": str(clip.fps_num),
-        "fps_den": str(clip.fps_den),
-        "min_luma": str(16 << (bits - 8) if is_limited else 0),
-        "max_luma": str(235 << (bits - 8) if is_limited else (1 << bits) - 1),
-        "lookahead": str(min(clip.fps_num * 5, 250)),
-    }
-
-
-def fill_props(settings: str, clip: vs.VideoNode, x265: bool, sar: str | None = None) -> str:
-    props = get_props(clip, x265)
-    if sar is not None:
-        if not isinstance(sar, str):
-            sar = str(sar)
-        sarnum = sar if ":" not in sar else sar.split(":")[0]
-        sarden = sar if ":" not in sar else sar.split(":")[1]
-    else:
-        sarnum = props.get("sarnum")
-        sarden = props.get("sarden")
-        if sarnum != "1" or sarden != "1":
-            warn(f"Are you sure your SAR ({sarnum}:{sarden}) is correct?\nAre you perhaps working on an anamorphic source?", None, 2)
-    settings = re.sub(r"{chromaloc(?::.)?}", props.get("chromaloc"), settings)
-    settings = re.sub(r"{primaries(?::.)?}", props.get("primaries"), settings)
-    settings = re.sub(r"{bits(?::.)?}", props.get("depth"), settings)
-    settings = re.sub(r"{matrix(?::.)?}", props.get("colormatrix"), settings)
-    settings = re.sub(r"{range(?::.)?}", props.get("range"), settings)
-    settings = re.sub(r"{transfer(?::.)?}", props.get("transfer"), settings)
-    settings = re.sub(r"{frames(?::.)?}", props.get("frames"), settings)
-    settings = re.sub(r"{fps_num(?::.)?}", props.get("fps_num"), settings)
-    settings = re.sub(r"{fps_den(?::.)?}", props.get("fps_den"), settings)
-    settings = re.sub(r"{min_keyint(?::.)?}", props.get("min_keyint"), settings)
-    settings = re.sub(r"{keyint(?::.)?}", props.get("keyint"), settings)
-    settings = re.sub(r"{sarnum(?::.)?}", sarnum, settings)
-    settings = re.sub(r"{sarden(?::.)?}", sarden, settings)
-    settings = re.sub(r"{min_luma(?::.)?}", props.get("min_luma"), settings)
-    settings = re.sub(r"{max_luma(?::.)?}", props.get("max_luma"), settings)
-    settings = re.sub(r"{lookahead(?::.)?}", props.get("lookahead"), settings)
-    return settings
-
-
-def props_args(clip: vs.VideoNode, x265: bool, sar: str | None = None) -> list[str]:
-    args: list[str] = []
-    props = get_props(clip, x265)
-    if sar is not None:
-        if not isinstance(sar, str):
-            sar = str(sar)
-        sarnum = sar if ":" not in sar else sar.split(":")[0]
-        sarden = sar if ":" not in sar else sar.split(":")[1]
-    else:
-        sarnum = props.get("sarnum")
-        sarden = props.get("sarden")
-        if sarnum != "1" or sarden != "1":
-            warn(f"Are you sure your SAR ({sarnum}:{sarden}) is correct?\nAre you perhaps working on an anamorphic source?", None, 2)
-
-    # fmt: off
-    args.extend([
-        "--input-depth", props.get("depth"),
-        "--output-depth", props.get("depth"),
-        "--transfer", props.get("transfer"),
-        "--chromaloc", props.get("chromaloc"),
-        "--colormatrix", props.get("colormatrix"),
-        "--range", props.get("range"),
-        "--colorprim", props.get("primaries"),
-        "--sar", f"{sarnum}:{sarden}"
-    ])
-    if x265:
-        args.extend([
-            "--min-luma", props.get("min_luma"),
-            "--max-luma", props.get("max_luma")
-        ])
-    return args
-    # fmt: on
