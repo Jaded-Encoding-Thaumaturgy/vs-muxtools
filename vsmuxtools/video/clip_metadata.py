@@ -38,7 +38,6 @@ def props_dict(
         max_luma=str(235 << (clip_format.bits_per_sample - 8) if color_range.is_limited else (1 << clip_format.bits_per_sample) - 1),
         lookahead=str(min(clip.fps_num * 5, 250)),
     )
-    print({k: str_props[k] for k in list(str_props)[:6]})
     return str_props
 
 
