@@ -125,7 +125,7 @@ class x265(SupportsQP):
             if start_frame:
                 self.zones = shift_zones(self.zones, start_frame)
             args.extend(zones_to_args(self.zones, True))
-        args.extend(self.get_custom_args() + ["--y4m", "-"])
+        args.extend(self.get_custom_args() + ["--y4m", "--input", "-"])
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
