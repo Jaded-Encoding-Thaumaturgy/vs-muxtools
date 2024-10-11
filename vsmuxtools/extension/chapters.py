@@ -1,7 +1,7 @@
 from fractions import Fraction
-from muxtools import parse_chapters_bdmv, PathLike, GlobSearch, Chapter, Chapters as Ch
+from muxtools import parse_chapters_bdmv, PathLike, GlobSearch, Chapter, Chapters as Ch, error
 
-from ..utils.src import src_file
+from ..utils.source import src_file
 
 __all__ = ["Chapters"]
 
@@ -19,6 +19,9 @@ class Chapters(Ch):
         :param _print:              Prints chapters after parsing and after trimming.
         """
         if isinstance(chapter_source, src_file):
+            if isinstance(chapter_source.file, list):
+                # I'll make a workaround for this soonish
+                raise error("Cannot currently parse chapters when splicing multiple files.", self)
             clip_fps = Fraction(chapter_source.src.fps_num, chapter_source.src.fps_den)
             self.fps = fps if fps else clip_fps
             self.chapters = parse_chapters_bdmv(chapter_source.file, self.fps, chapter_source.src_cut.num_frames, _print)
