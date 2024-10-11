@@ -10,7 +10,7 @@ from .types import Zone
 from ..resumable import merge_parts, parse_keyframes
 from ..settings import file_or_default, sb264, sb265
 from ..clip_metadata import fill_props, props_args, props_dict
-from vsmuxtools.utils.src import generate_qp_file, src_file
+from vsmuxtools.utils.source import generate_qp_file, src_file
 
 __all__ = ["VideoEncoder", "FFMpegEncoder", "SupportsQP"]
 

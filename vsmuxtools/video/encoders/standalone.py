@@ -10,7 +10,7 @@ from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
 from ..settings import shift_zones, zones_to_args, norm_zones
 
-from vsmuxtools.utils.src import generate_keyframes, src_file
+from vsmuxtools.utils.source import generate_keyframes, src_file
 
 __all__ = ["x264", "x265", "LosslessX264", "SVTAV1"]
 

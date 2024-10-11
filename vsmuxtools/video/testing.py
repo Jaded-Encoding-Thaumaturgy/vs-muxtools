@@ -4,7 +4,7 @@ from shlex import split
 from numpy import arange
 
 from .encoders import SupportsQP, VideoEncoder, x265
-from ..utils.src import SRC_FILE, src
+from ..utils.source import SRC_FILE, src
 from muxtools import make_output
 
 __all__ = ["SettingsTester"]

@@ -19,7 +19,7 @@ from muxtools import (
     ensure_path,
 )
 
-from ..utils.src import src_file
+from ..utils.source import src_file
 from ..utils.audio import audio_async_render
 
 __all__ = ["do_audio", "encode_audio", "export_audionode"]
