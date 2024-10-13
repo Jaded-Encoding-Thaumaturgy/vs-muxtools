@@ -166,7 +166,7 @@ class LosslessX264(VideoEncoder):
 
         if self.settings:
             settings.extend(shlex.split(self.settings))
-        avc = x264(settings, add_props=self.add_props, resumable=False)
+        avc = x264(shlex.join(settings), add_props=self.add_props, resumable=False)
         avc._update_settings(clip, False)
         avc._encode_clip(clip, out, None, 0)
         return VideoFile(out)
