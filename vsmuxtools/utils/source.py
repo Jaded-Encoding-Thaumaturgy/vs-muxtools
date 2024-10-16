@@ -1,7 +1,19 @@
 from pathlib import Path
 from typing import Callable, Sequence
 from fractions import Fraction
-from vstools import vs, core, initialize_clip, copy_signature, KwargsT
+from vstools import (
+    vs,
+    core,
+    initialize_clip,
+    KwargsT,
+    ColorRangeT,
+    MatrixT,
+    TransferT,
+    PrimariesT,
+    DitherType,
+    FieldBasedT,
+    ChromaLocationT,
+)
 from muxtools import (
     Trim,
     PathLike,
@@ -111,23 +123,43 @@ class src_file:
             self.__index_clip()
         return self.clip_cut
 
-    @copy_signature(initialize_clip)
-    def init(self, *args, **kwargs) -> vs.VideoNode:
+    def init(
+        self,
+        bits: int | None = None,
+        matrix: MatrixT | None = None,
+        transfer: TransferT | None = None,
+        primaries: PrimariesT | None = None,
+        chroma_location: ChromaLocationT | None = None,
+        color_range: ColorRangeT | None = None,
+        field_based: FieldBasedT | None = None,
+        strict: bool = False,
+        dither_type: DitherType = DitherType.AUTO,
+    ) -> vs.VideoNode:
         """
         Getter that calls `vstools.initialize_clip` on the src clip for convenience
-
-        :param kwargs:      Any other args passed to initialize_clip
         """
-        return initialize_clip(self.src, *args, **kwargs)
+        return initialize_clip(
+            self.src, bits, matrix, transfer, primaries, chroma_location, color_range, field_based, strict, dither_type, func=self.init
+        )
 
-    @copy_signature(initialize_clip)
-    def init_cut(self, *args, **kwargs) -> vs.VideoNode:
+    def init_cut(
+        self,
+        bits: int | None = None,
+        matrix: MatrixT | None = None,
+        transfer: TransferT | None = None,
+        primaries: PrimariesT | None = None,
+        chroma_location: ChromaLocationT | None = None,
+        color_range: ColorRangeT | None = None,
+        field_based: FieldBasedT | None = None,
+        strict: bool = False,
+        dither_type: DitherType = DitherType.AUTO,
+    ) -> vs.VideoNode:
         """
         Getter that calls `vstools.initialize_clip` on the src_cut clip for convenience
-
-        :param kwargs:      Any other args passed to initialize_clip
         """
-        return initialize_clip(self.src_cut, *args, **kwargs)
+        return initialize_clip(
+            self.src_cut, bits, matrix, transfer, primaries, chroma_location, color_range, field_based, strict, dither_type, func=self.init_cut
+        )
 
     def get_audio(self, track: int = 0, **kwargs) -> vs.AudioNode:
         """
