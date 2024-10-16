@@ -1,6 +1,7 @@
 from pathlib import Path
 from vstools import vs
 from fractions import Fraction
+from collections.abc import Sequence
 
 from muxtools import do_audio as mt_audio
 from muxtools import (
@@ -47,7 +48,7 @@ def do_audio(
     fileIn: PathLike | src_file | vs.AudioNode,
     track: int = 0,
     trims: Trim | list[Trim] | None = None,
-    fps: Fraction | PathLike | None = None,
+    fps: Fraction | PathLike | Sequence[int] | None = None,
     num_frames: int = 0,
     extractor: Extractor = FFMpeg.Extractor(),
     trimmer: Trimmer | None = AutoTrimmer(),
