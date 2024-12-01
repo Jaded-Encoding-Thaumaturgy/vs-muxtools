@@ -194,7 +194,7 @@ class SVTAV1(VideoEncoder):
     qp_clip: vs.VideoNode | src_file | None = None
 
     def __post_init__(self):
-        self.executable = get_executable("svtav1encapp")
+        self.executable = get_executable("SvtAv1EncApp")
         if self.get_process_affinity() is False:
             self.affinity = []
         if not self.qp_clip:
