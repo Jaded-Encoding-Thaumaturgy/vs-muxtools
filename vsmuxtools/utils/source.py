@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Callable, Sequence
 from fractions import Fraction
+from enum import IntEnum
 from vstools import (
     vs,
     core,
@@ -28,37 +29,67 @@ from muxtools import (
     GlobSearch,
     error,
     sanitize_trims,
+    debug,
+    warn,
 )
 
+from muxtools.audio.preprocess import classproperty
 
-__all__ = ["src_file", "SRC_FILE", "FileInfo", "src", "frames_to_samples", "f2s"]
+
+__all__ = ["src_file", "SRC_FILE", "FileInfo", "src", "frames_to_samples", "f2s", "SourceFilter"]
+
+
+class SourceFilter(IntEnum):
+    """Filter used to index the source file"""
+
+    AUTO = 0
+    """
+    LSMASH for m2ts regardless of previewing; FFMS2 if previewing, BESTSOURCE otherwise.
+    """
+    BESTSOURCE = 1
+    """
+    Slow initial indexing but guaranteed accuracy.
+    https://github.com/vapoursynth/bestsource
+    """
+    FFMS2 = 2
+    """
+    Fast, generally good enough.
+    https://github.com/FFMS/ffms2
+    """
+    LSMASH = 3
+    """
+    Also fast but notably the only thing that isn't affected by a certain m2ts ffmpeg bug.\n
+    May be deprecated once a new FFMS2 build is available.\n
+    https://github.com/HomeOfAviSynthPlusEvolution/L-SMASH-Works
+    """
+
+    BS = BESTSOURCE
+    """Alias for BESTSOURCE"""
 
 
 class src_file:
     file: Path | list[Path]
-    force_lsmas: bool = False
-    force_bs: bool = False
     trim: Trim = None
+    preview_sourcefilter: SourceFilter | None
+    sourcefilter: SourceFilter
     idx: Callable[[str], vs.VideoNode] | None = None
     idx_args = {}
 
     def __init__(
         self,
         file: PathLike | GlobSearch | Sequence[PathLike],
-        force_lsmas: bool = False,
         trim: Trim = None,
+        preview_sourcefilter: SourceFilter | None = SourceFilter.FFMS2,
+        sourcefilter: SourceFilter = SourceFilter.BESTSOURCE,
         idx: Callable[[str], vs.VideoNode] | None = None,
-        force_bs: bool = False,
         **kwargs,
     ):
         """
         Custom `FileInfo` kind of thing for convenience
 
         :param file:            Either a string based filepath or a Path object
-        :param force_lsmas:     Forces the use of lsmas inside of the default indexer function.
         :param trim:            Can be a single trim or a sequence of trims.
         :param idx:             Indexer for the input file. Pass a function that takes a string in and returns a vs.VideoNode.
-        :param force_bs:        Forces the use of bestsource inside of the default indexer function.
         """
         if isinstance(file, Sequence) and not isinstance(file, str) and len(file) == 1:
             file = file[0]
@@ -68,9 +99,9 @@ class src_file:
             if isinstance(file, Sequence) and not isinstance(file, str)
             else ensure_path_exists(file, self)
         )
-        self.force_lsmas = force_lsmas
-        self.force_bs = force_bs
         self.trim = trim
+        self.preview_sourcefilter = preview_sourcefilter
+        self.sourcefilter = sourcefilter
         self.idx = idx
         self.idx_args = kwargs
 
@@ -78,7 +109,7 @@ class src_file:
         if self.idx:
             return self.idx(str(fileIn.resolve()))
         else:
-            return src(fileIn, self.force_lsmas, self.force_bs, **self.idx_args)
+            return src(fileIn, preview_sourcefilter=self.preview_sourcefilter, sourcefilter=self.sourcefilter, **self.idx_args)
 
     def __index_clip(self):
         if isinstance(self.file, list):
@@ -193,8 +224,8 @@ class src_file:
         entries: int | list[int] | Trim | None = None,
         angle: int = 0,
         trim: Trim | None = None,
-        force_lsmas: bool = False,
-        force_bs: bool = False,
+        preview_sourcefilter: SourceFilter | None = SourceFilter.AUTO,
+        sourcefilter: SourceFilter = SourceFilter.BESTSOURCE,
         idx: Callable[[str], vs.VideoNode] | None = None,
         **kwargs: KwargsT,
     ) -> "src_file":
@@ -213,14 +244,39 @@ class src_file:
                     clips = clips[entries[0] :]
                 else:
                     clips = clips[entries[0] : entries[1]]
-        return src_file(clips, force_lsmas, trim, idx, force_bs, **kwargs)
+        return src_file(clips, trim, preview_sourcefilter, sourcefilter, idx, **kwargs)
+
+    @classproperty
+    def AUTO(self) -> SourceFilter:
+        return SourceFilter.AUTO
+
+    @classproperty
+    def BESTSOURCE(self) -> SourceFilter:
+        return SourceFilter.BESTSOURCE
+
+    @classproperty
+    def BS(self) -> SourceFilter:
+        return SourceFilter.BESTSOURCE
+
+    @classproperty
+    def FFMS2(self) -> SourceFilter:
+        return SourceFilter.FFMS2
+
+    @classproperty
+    def LSMASH(self) -> SourceFilter:
+        return SourceFilter.LSMASH
 
 
 SRC_FILE = src_file
 FileInfo = src_file
 
 
-def src(filePath: PathLike, force_lsmas: bool = False, force_bs: bool = False, **kwargs: KwargsT) -> vs.VideoNode:
+def src(
+    filePath: PathLike,
+    preview_sourcefilter: SourceFilter | None = SourceFilter.AUTO,
+    sourcefilter: SourceFilter = SourceFilter.BESTSOURCE,
+    **kwargs: KwargsT,
+) -> vs.VideoNode:
     """
     Uses lsmas for previewing and bestsource otherwise.
     Still supports dgi files directly if dgdecodenv is installed to not break existing scripts.
@@ -238,29 +294,62 @@ def src(filePath: PathLike, force_lsmas: bool = False, force_bs: bool = False, *
             raise error("Trying to use a dgi file without dgdecodenv installed.", src)
         return core.lazy.dgdecodenv.DGSource(str(filePath.resolve()) if not dgiFile.exists() else str(dgiFile.resolve()), **kwargs)
 
-    has_bestsource, has_lsmas = hasattr(core, "bs"), hasattr(core, "lsmas")
-    if not has_bestsource and not has_lsmas:
-        raise error("Neither bestsource nor lsmas are installed.", src)
-    if force_lsmas and not has_lsmas and not force_bs:
-        raise error("You cannot force lsmas indexing without lsmas installed!", src)
-    if force_bs and not has_bestsource:
-        raise error("You cannot force bestsource indexing without bestsource installed!", src)
-
     is_previewing = False
     try:
         from vspreview import is_preview
 
         is_previewing = is_preview()
     except:
-        pass
+        debug("Could not check if we're currently previewing. Is vspreview installed?", src)
 
-    if (is_previewing or force_lsmas) and not force_bs and has_lsmas:
-        info(f"Indexing '{filePath.name}' using lsmas LWLibavSource", src)
-        return core.lazy.lsmas.LWLibavSource(str(filePath.resolve()), **kwargs)
+    force_lsmas = kwargs.pop("force_lsmas", False)
+    if force_lsmas:
+        warn("force_lsmas is deprecated!\nPlease switch to using the explicit sourcefilter params.", src, 5)
+        preview_sourcefilter = None
+        sourcefilter = SourceFilter.LSMASH
+
+    force_bs = kwargs.pop("force_bs", False)
+    if force_bs:
+        warn("force_bs is deprecated!\nPlease switch to using the explicit sourcefilter params.", src, 5)
+        preview_sourcefilter = None
+        sourcefilter = SourceFilter.BESTSOURCE
+
+    if preview_sourcefilter is SourceFilter.AUTO:
+        preview_sourcefilter = SourceFilter.LSMASH if "m2ts" in filePath.name.lower() else SourceFilter.FFMS2
+
+    if sourcefilter is SourceFilter.AUTO:
+        sourcefilter = SourceFilter.LSMASH if "m2ts" in filePath.name.lower() else SourceFilter.BESTSOURCE
+
+    if is_previewing and preview_sourcefilter is not None:
+        return _call_sourcefilter(filePath.resolve(), preview_sourcefilter, **kwargs)
     else:
-        info(f"Indexing '{filePath.name}' using bestsource.", src)
-        show_progress = kwargs.pop("showprogress", True)
-        return core.lazy.bs.VideoSource(str(filePath.resolve()), showprogress=show_progress, **kwargs)
+        return _call_sourcefilter(filePath.resolve(), sourcefilter, **kwargs)
+
+
+def _call_sourcefilter(fileIn: Path, sourcefilter: SourceFilter, **kwargs) -> vs.VideoNode:
+    filePath = str(fileIn)
+    match sourcefilter:
+        case SourceFilter.BESTSOURCE:
+            if not hasattr(core, "bs"):
+                raise error("Bestsource plugin is not installed!", src)
+            show_progress = kwargs.pop("showprogress", True)
+
+            info(f"Indexing '{fileIn.name}' using bestsource.", src)
+            return core.lazy.bs.VideoSource(filePath, showprogress=show_progress, **kwargs)
+        case SourceFilter.LSMASH:
+            if not hasattr(core, "lsmas"):
+                raise error("LSMASH plugin is not installed!", src)
+
+            info(f"Indexing '{fileIn.name}' using LSMASH LWLibavSource.", src)
+            return core.lazy.lsmas.LWLibavSource(filePath, **kwargs)
+        case SourceFilter.FFMS2:
+            if not hasattr(core, "ffms2"):
+                raise error("FFMS2 plugin is not installed!", src)
+
+            info(f"Indexing '{fileIn.name}' using FFMS2.", src)
+            return core.lazy.ffms2.Source(filePath, **kwargs)
+        case _:
+            raise error(f"Invalid sourcefilter passed! ({sourcefilter})", src)
 
 
 def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: vs.VideoNode | Fraction = Fraction(24000, 1001)) -> int:
