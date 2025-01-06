@@ -87,9 +87,12 @@ class src_file:
         """
         Custom `FileInfo` kind of thing for convenience
 
-        :param file:            Either a string based filepath or a Path object
-        :param trim:            Can be a single trim or a sequence of trims.
-        :param idx:             Indexer for the input file. Pass a function that takes a string in and returns a vs.VideoNode.
+        :param file:                    Either a string based filepath or a Path object
+        :param trim:                    Can be a single trim or a sequence of trims.
+        :param preview_sourcefilter:    Source filter to be used when previewing using vspreview.
+                                        `None` will make it fall back to `sourcefilter`.
+        :param sourcefilter:            Source filter to be used otherwise.
+        :param idx:                     Custom indexer for the input file. Pass a function that takes a string in and returns a vs.VideoNode.
         """
         if isinstance(file, Sequence) and not isinstance(file, str) and len(file) == 1:
             file = file[0]
@@ -281,11 +284,12 @@ def src(
     Uses lsmas for previewing and bestsource otherwise.
     Still supports dgi files directly if dgdecodenv is installed to not break existing scripts.
 
-    :param filepath:        Path to video or dgi file
-    :param force_lsmas:     Force the use of lsmas.LWLibavSource
-    :param force_bs:        Force the use of bs.VideoSource. This takes priority over the force_lsmas param.
-    :param kwargs:          Other arguments you may or may not wanna pass to the indexer.
-    :return:                Video Node
+    :param filepath:                Path to video or dgi file
+    :param preview_sourcefilter:    Source filter to be used when previewing using vspreview.
+                                    `None` will make it fall back to `sourcefilter`.
+    :param sourcefilter:            Source filter to be used otherwise.
+    :param kwargs:                  Other arguments you may or may not wanna pass to the indexer.
+    :return:                        Video Node
     """
     filePath = ensure_path_exists(filePath, src)
     dgiFile = filePath.with_suffix(".dgi")
