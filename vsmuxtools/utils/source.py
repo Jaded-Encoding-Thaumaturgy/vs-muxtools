@@ -204,7 +204,7 @@ class src_file:
         nodes = list[vs.AudioNode]()
         for f in file:
             absolute = get_absolute_track(f, track, TrackType.AUDIO)
-            nodes.append(core.bs.AudioSource(str(f.resolve()), absolute, **kwargs))
+            nodes.append(core.bs.AudioSource(str(f.resolve()), absolute.track_id, **kwargs))
 
         return nodes[0] if len(nodes) == 1 else core.std.AudioSplice(nodes)
 
