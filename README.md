@@ -13,3 +13,9 @@ Git is always the most updated one obviously but I can't guarantee that everythi
 You can also grab the latest stable ish versions from pip.
 
 [![PyPI version](https://badge.fury.io/py/vsmuxtools.svg)](https://badge.fury.io/py/vsmuxtools)
+
+
+### vs-jetpack
+
+If you use vsjetpack on your install you do currently need the current git master.<br>
+The next release will happen when I'm done with other muxtools changes.
