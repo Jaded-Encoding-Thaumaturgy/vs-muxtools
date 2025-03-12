@@ -1,7 +1,6 @@
 from pathlib import Path
 from vstools import vs
 from fractions import Fraction
-from collections.abc import Sequence
 
 from muxtools import do_audio as mt_audio
 from muxtools import (
