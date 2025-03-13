@@ -222,7 +222,7 @@ class SVTAV1(VideoEncoder):
 
         clip_props = props_dict(clip, False, SVT_AV1_RANGES)
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
-        encoder = get_binary_version(self.executable, r"(SVT-AV1.+?v\d+.\d+.\d[^ ]+)", ["--version"])
+        encoder = get_binary_version(self.executable, r"(SVT-AV1.+?(?:v\d+.\d+.\d[^ ]+|[0-9a-f]{8,40}))", ["--version"])
         tags = dict[str, str](ENCODER=encoder)
         args = [self.executable, "-i", "-", "--output", str(output), "--preset", str(self.preset)]
         if self.qp_clip:
