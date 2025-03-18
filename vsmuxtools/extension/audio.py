@@ -98,9 +98,9 @@ def do_audio(
     elif isinstance(fileIn, src_file):
         if not trims:
             trims = fileIn.trim
-
-        fileIn = fileIn.file
+        
         clip = fileIn.src
+        fileIn = fileIn.file
         if not num_frames:
             num_frames = clip.num_frames
         if timesource is None:

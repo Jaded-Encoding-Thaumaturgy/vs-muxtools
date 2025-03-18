@@ -33,7 +33,7 @@ class Chapters(Ch):
                 raise error("Cannot currently parse chapters when splicing multiple files.", self)
             clip_fps = Fraction(chapter_source.src.fps_num, chapter_source.src.fps_den)
             self.timestamps = resolve_timesource_and_scale(timesource if timesource else clip_fps, timescale, caller=self)
-            self.chapters = parse_chapters_bdmv(chapter_source.file, self.fps, chapter_source.src_cut.num_frames, _print)
+            self.chapters = parse_chapters_bdmv(chapter_source.file, clip_fps, chapter_source.src_cut.num_frames, _print)
             if self.chapters and chapter_source.trim:
                 self.trim(chapter_source.trim[0], chapter_source.trim[1], chapter_source.src_cut.num_frames)
                 if _print:
