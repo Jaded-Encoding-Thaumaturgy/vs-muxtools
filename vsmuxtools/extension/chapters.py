@@ -40,4 +40,4 @@ class Chapters(Ch):
                     print("After trim:")
                     self.print()
         else:
-            super().__init__(chapter_source, timesource or Fraction(24000, 1001), _print)
+            super().__init__(chapter_source, timesource or Fraction(24000, 1001), timescale, _print)
