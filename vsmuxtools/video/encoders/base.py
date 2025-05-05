@@ -34,7 +34,7 @@ class VideoEncoder(CLIKwargs, ABC):
         ...
 
     def _update_progress(self, current_frame, total_frames):
-        print(f"\rVapoursynth: {current_frame} / {total_frames} " f"({100 * current_frame // total_frames}%) || Encoder: ", end="")
+        print(f"\rVapoursynth: {current_frame} / {total_frames} ({100 * current_frame // total_frames}%) || Encoder: ", end="")
 
 
 @dataclass
