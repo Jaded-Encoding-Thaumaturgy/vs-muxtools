@@ -1,7 +1,6 @@
 from pathlib import Path
 from vstools import vs
 from fractions import Fraction
-from collections.abc import Sequence
 
 from muxtools import do_audio as mt_audio
 from muxtools import (
@@ -19,6 +18,7 @@ from muxtools import (
     get_workdir,
     ensure_path,
 )
+from muxtools.utils.types import TimeScale, TimeScaleT, TimeSourceT
 
 from ..utils.source import src_file
 from ..utils.audio import audio_async_render
@@ -48,7 +48,8 @@ def do_audio(
     fileIn: PathLike | src_file | vs.AudioNode,
     track: int = 0,
     trims: Trim | list[Trim] | None = None,
-    fps: Fraction | PathLike | Sequence[int] | None = None,
+    timesource: TimeSourceT = None,
+    timescale: TimeScaleT = TimeScale.MKV,
     num_frames: int = 0,
     extractor: Extractor = FFMpeg.Extractor(),
     trimmer: Trimmer | None = AutoTrimmer(),
@@ -63,10 +64,11 @@ def do_audio(
     :param track:           Audio track number
     :param trims:           Frame ranges to trim and/or combine, e.g. (24, -24) or [(24, 500), (700, 900)]
                             If your passed src_file has a trim it will use it. Any other trims passed here will overwrite it.
-
-    :param fps:             FPS Fraction used for the conversion to time
+    :param timesource:      The source of timestamps/timecodes. For details check the docstring on the type.\n
                             Will be taken from input if it's a src_file and assume the usual 24 if not.
-                            Also accepts a timecode (v2) file.
+
+    :param timescale:       Unit of time (in seconds) in terms of which frame timestamps are represented.\n
+                            For details check the docstring on the type.
 
     :param num_frames:      Total number of frames, used for negative numbers in trims
                             Will be taken from input if it's a src_file
@@ -96,13 +98,18 @@ def do_audio(
     elif isinstance(fileIn, src_file):
         if not trims:
             trims = fileIn.trim
-        clip = fileIn.src
-        num_frames = clip.num_frames
-        fps = Fraction(clip.fps_num, clip.fps_den) if fps is None else fps
-        fileIn = fileIn.file
 
-    fps = Fraction(24000, 1001) if fps is None else fps
-    return mt_audio(fileIn, track, trims, fps, num_frames, extractor, trimmer, encoder, quiet, output)
+        clip = fileIn.src
+        fileIn = fileIn.file
+        if not num_frames:
+            num_frames = clip.num_frames
+        if timesource is None:
+            timesource = Fraction(clip.fps_num, clip.fps_den)
+
+    if timesource is None:
+        timesource = Fraction(24000, 1001)
+
+    return mt_audio(fileIn, track, trims, timesource, timescale, num_frames, extractor, trimmer, encoder, quiet, output)
 
 
 encode_audio = do_audio

@@ -1,24 +1,27 @@
-import subprocess
 from vstools import vs
 from fractions import Fraction
 from dataclasses import dataclass
+from datetime import timedelta
 
 from muxtools import (
     PathLike,
     ensure_path_exists,
     debug,
-    error,
     get_absolute_track,
     get_executable,
     TrackType,
-    frame_to_timedelta,
     VideoFile,
     VideoTrack,
     MkvTrack,
+    TimeScale,
+    resolve_timesource_and_scale,
+    get_timemeta_from_video,
+    TimeType,
 )
 from muxtools import SubFile as MTSubFile
 from muxtools.subtitle import _Line
 from muxtools.subtitle.sub import SubFileSelf, LINES
+from muxtools.utils.types import TimeSourceT, TimeScaleT
 
 __all__ = ["SubFile"]
 
@@ -37,49 +40,42 @@ class SubFile(MTSubFile):
     """
 
     def truncate_by_video(
-        self: SubFileSelf, source: PathLike | VideoTrack | MkvTrack | VideoFile | vs.VideoNode, fps: Fraction | PathLike | None = None
+        self: SubFileSelf,
+        source: PathLike | VideoTrack | MkvTrack | VideoFile | vs.VideoNode,
+        timesource: TimeSourceT = None,
+        timescale: TimeScaleT = TimeScale.MKV,
     ) -> SubFileSelf:
         """
         Removes lines that start after the video ends and trims lines that extend past it.
 
-        :param source:      Can be any video file or a VideoNode
-        :param fps:         FPS Fraction; Will be parsed from the video by default. Also accepts a timecode (v2) file.
+        :param source:          Can be any video file or a VideoNode
+        :param timesource:      The source of timestamps/timecodes. For details check the docstring on the type.
+        :param timescale:       Unit of time (in seconds) in terms of which frame timestamps are represented.\n
+                                For details check the docstring on the type.
         """
+
         if isinstance(source, vs.VideoNode):
             frames = source.num_frames
-            if not fps:
-                fps = Fraction(source.fps_num, source.fps_den)
+            if not timesource:
+                timesource = Fraction(source.fps_num, source.fps_den)
+            resolved_ts = resolve_timesource_and_scale(timesource, timescale, allow_warn=False, caller=self)
         else:
             if isinstance(source, VideoTrack) or isinstance(source, MkvTrack) or isinstance(source, VideoFile):
                 file = ensure_path_exists(source.file, self)
             else:
                 file = ensure_path_exists(source, self)
-            # Unused variable, just used to have a simple validation
-            track = get_absolute_track(file, 0, TrackType.VIDEO, self)  # noqa: F841
-            ffprobe = get_executable("ffprobe")
-            args = [ffprobe, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=r_frame_rate : stream_tags", str(file)]
-            out = subprocess.run(args, capture_output=True, text=True)
-            frames = 0
 
-            for line in out.stdout.splitlines():
-                if "=" not in line:
-                    continue
-                line = line.strip()
-                if "r_frame_rate" in line and not fps:
-                    fps = Fraction(line.split("=")[1])
-                    debug(f"Parsed FPS from file: {fps}", self)
-                elif "NUMBER_OF_FRAMES" in line:
-                    line = line.split("=")[1]
-                    try:
-                        frames = int(line)
-                        debug(f"Parsed frames from file: {frames}", self)
-                    except:
-                        continue
+            assert get_absolute_track(file, 0, TrackType.VIDEO, self)
+            assert get_executable("ffprobe")
 
-            if not fps or not frames:
-                raise error(f"Could not parse frames or fps from file '{file.stem}'!", self)
+            meta = get_timemeta_from_video(file, caller=self)
+            frames = len(meta.pts)
+            if not timesource:
+                timesource = meta
+                timescale = meta.timescale
+            resolved_ts = resolve_timesource_and_scale(timesource, timescale, allow_warn=False, caller=self)
 
-        cutoff = frame_to_timedelta(frames + 1, fps, compensate=True)
+        cutoff = timedelta(milliseconds=resolved_ts.frame_to_time(frames + 1, TimeType.START, 2, True) * 10)
 
         def filter_lines(lines: LINES):
             removed = 0
@@ -90,7 +86,7 @@ class SubFile(MTSubFile):
                     removed += 1
                     continue
                 if line.end > cutoff:
-                    line.end = frame_to_timedelta(frames, fps, compensate=True)
+                    line.end = timedelta(milliseconds=resolved_ts.frame_to_time(frames, TimeType.END, 2, True) * 10)
                     trimmed += 1
                 new_list.append(line)
 
