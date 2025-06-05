@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Sequence, TYPE_CHECKING, MutableMapping
 from fractions import Fraction
 from enum import IntEnum
 from vstools import (
@@ -14,6 +14,7 @@ from vstools import (
     DitherType,
     FieldBasedT,
     ChromaLocationT,
+    vs_object,
 )
 from muxtools import (
     Trim,
@@ -67,7 +68,7 @@ class SourceFilter(IntEnum):
     """Alias for BESTSOURCE"""
 
 
-class src_file:
+class src_file(vs_object):
     file: Path | list[Path]
     trim: Trim = None
     preview_sourcefilter: SourceFilter | None
@@ -219,6 +220,16 @@ class src_file:
             else:
                 node = node[f2s(self.trim[0], node, self.src) : f2s(self.trim[1], node, self.src)]
         return node
+
+    def __vs_del__(self, core_id: int) -> None:
+        if not TYPE_CHECKING:
+            for v in self.__dict__.values():
+                if not isinstance(v, MutableMapping):
+                    continue
+
+                for k2, v2 in v.items():
+                    if isinstance(v2, vs.VideoNode):
+                        v[k2] = None
 
     @staticmethod
     def BDMV(
