@@ -223,6 +223,9 @@ class src_file(vs_object):
 
     def __vs_del__(self, core_id: int) -> None:
         if not TYPE_CHECKING:
+            setattr(self, "clip", None)
+            setattr(self, "clip_cut", None)
+
             for v in self.__dict__.values():
                 if not isinstance(v, MutableMapping):
                     continue
