@@ -2,13 +2,13 @@ from vstools import vs
 from fractions import Fraction
 from dataclasses import dataclass
 from datetime import timedelta
+from typing_extensions import Self
 
 from muxtools import (
     PathLike,
     ensure_path_exists,
     debug,
-    get_absolute_track,
-    get_executable,
+    ParsedFile,
     TrackType,
     VideoFile,
     VideoTrack,
@@ -17,19 +17,23 @@ from muxtools import (
     resolve_timesource_and_scale,
     get_timemeta_from_video,
     TimeType,
+    error,
+    warn,
 )
-from muxtools import SubFile as MTSubFile
+from muxtools import SubFile as MTSubFile, SubFilePGS as MTSubFilePGS
 from muxtools.subtitle import _Line
-from muxtools.subtitle.sub import SubFileSelf, LINES
+from muxtools.subtitle.sub import LINES
 from muxtools.utils.types import TimeSourceT, TimeScaleT
 
-__all__ = ["SubFile"]
+from ..utils.source import src_file
+
+__all__ = ["SubFile", "SubFilePGS"]
 
 
 @dataclass
 class SubFile(MTSubFile):
     """
-    Utility class representing a subtitle file with various functions to run on.
+    Utility class representing an ASS/SSA subtitle file with various functions to run on.
 
     :param file:            Can be a string, Path object or GlobSearch.
                             If the GlobSearch returns multiple results or if a list was passed it will merge them.
@@ -40,11 +44,11 @@ class SubFile(MTSubFile):
     """
 
     def truncate_by_video(
-        self: SubFileSelf,
+        self,
         source: PathLike | VideoTrack | MkvTrack | VideoFile | vs.VideoNode,
         timesource: TimeSourceT = None,
         timescale: TimeScaleT = TimeScale.MKV,
-    ) -> SubFileSelf:
+    ) -> Self:
         """
         Removes lines that start after the video ends and trims lines that extend past it.
 
@@ -65,8 +69,9 @@ class SubFile(MTSubFile):
             else:
                 file = ensure_path_exists(source, self)
 
-            assert get_absolute_track(file, 0, TrackType.VIDEO, self)
-            assert get_executable("ffprobe")
+            parsed = ParsedFile.from_file(file, self)
+
+            assert parsed.find_tracks(type=TrackType.VIDEO, error_if_empty=True, caller=self)[0]
 
             meta = get_timemeta_from_video(file, caller=self)
             frames = len(meta.pts)
@@ -99,3 +104,48 @@ class SubFile(MTSubFile):
             return new_list
 
         return self.manipulate_lines(filter_lines)
+
+
+@dataclass
+class SubFilePGS(MTSubFilePGS):
+    """
+    Utility class representing a PGS/SUP subtitle file.
+
+    :param file:            Can be a string, Path object or GlobSearch.
+                            If the GlobSearch returns multiple results or if a list was passed it will merge them.
+
+    :param container_delay: Set a container delay used in the muxing process later.
+    :param source:          The file this sub originates from, will be set by the constructor.
+    :param encoding:        Encoding used for reading and writing the subtitle files.
+    """
+
+    @classmethod
+    def extract_from(cls: type[Self], fileIn: PathLike | src_file, track: int = 0, preserve_delay: bool = False, quiet: bool = True) -> Self:
+        """
+        Extract a PGS subtitle track from a file using ffmpeg.\n
+
+        :param fileIn:          The input file to extract from.
+        :param track:           The track number to extract.
+        :param preserve_delay:  If True, the container delay will be preserved.
+        :param quiet:           If True, suppresses ffmpeg output.
+        :return:                An instance of SubFilePGS containing the extracted subtitle.
+        """
+        f = fileIn
+        if isinstance(f, src_file):
+            if isinstance(f.file, list):
+                # I'll make a workaround for this soonish
+                raise error("Cannot currently parse chapters when splicing multiple files.", cls.__name__)
+            f = f.file
+        new = super().extract_from(
+            f,
+            track=track,
+            preserve_delay=preserve_delay,
+            quiet=quiet,
+        )
+        if isinstance(fileIn, src_file) and fileIn.trim:
+            if fileIn.trim[0]:
+                debug(f"Shifting extracted subtitle by -{fileIn.trim[0]} frames...", cls.__name__)
+                new = new.shift(-fileIn.trim[0], timesource=fileIn.file, quiet=quiet)
+            if fileIn.trim[1]:
+                warn("Trimming is currently not supported for PGS subtitles.", cls.__name__)
+        return new
