@@ -25,13 +25,13 @@ from muxtools import (
     get_workdir,
     get_temp_workdir,
     clean_temp_files,
-    get_absolute_track,
     TrackType,
     GlobSearch,
     error,
     sanitize_trims,
     debug,
     warn,
+    ParsedFile,
 )
 
 from muxtools.audio.preprocess import classproperty
@@ -204,8 +204,9 @@ class src_file(vs_object):
 
         nodes = list[vs.AudioNode]()
         for f in file:
-            absolute = get_absolute_track(f, track, TrackType.AUDIO)
-            nodes.append(core.bs.AudioSource(str(f.resolve()), absolute.track_id, **kwargs))
+            parsed = ParsedFile.from_file(f, self)
+            absolute = parsed.find_tracks(relative_id=track, type=TrackType.AUDIO, error_if_empty=True, caller=self)[0].index
+            nodes.append(core.bs.AudioSource(str(f.resolve()), absolute, **kwargs))
 
         return nodes[0] if len(nodes) == 1 else core.std.AudioSplice(nodes)
 
