@@ -2,7 +2,8 @@ import struct
 import numpy as np
 from enum import IntEnum
 from typing import BinaryIO, Optional
-from vstools import get_render_progress, vs
+from vstools import vs
+from vstools.functions.progress import get_render_progress
 
 __all__ = ["audio_async_render", "WaveHeader"]
 
