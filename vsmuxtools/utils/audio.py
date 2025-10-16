@@ -3,7 +3,6 @@ import numpy as np
 from enum import IntEnum
 from typing import BinaryIO, Optional
 from vstools import vs
-from vstools.functions.progress import get_render_progress
 
 __all__ = ["audio_async_render", "WaveHeader"]
 
@@ -71,6 +70,10 @@ def audio_async_render(
                         If empty or ``None``, no progress display.
     """
     if progress:
+        try:
+            from vstools.functions.render.progress import get_render_progress
+        except:
+            from vstools.functions.progress import get_render_progress
         p = get_render_progress()
         task = p.add_task(progress, total=audio.num_frames)
         p.start()
