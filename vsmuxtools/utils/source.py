@@ -79,7 +79,7 @@ class src_file(vs_object):
     def __init__(
         self,
         file: PathLike | GlobSearch | Sequence[PathLike],
-        trim: Trim = None,
+        trim: Trim | list[Trim] | None = None,
         preview_sourcefilter: SourceFilter | None = SourceFilter.FFMS2,
         sourcefilter: SourceFilter = SourceFilter.BESTSOURCE,
         idx: Callable[[str], vs.VideoNode] | None = None,
@@ -120,22 +120,6 @@ class src_file(vs_object):
             indexed = core.std.Splice([self.__call_indexer(f) for f in self.file])
         else:
             indexed = self.__call_indexer(self.file)
-        cut = indexed
-        if self.trim:
-            self.trim = list(self.trim)
-            if self.trim[0] is None:
-                self.trim[0] = 0
-            if self.trim[1] is None or self.trim[1] == 0:
-                if self.trim[0] < 0:
-                    cut = (indexed[0] * abs(self.trim[0])) + indexed
-                else:
-                    cut = indexed[self.trim[0] :]
-            else:
-                if self.trim[0] < 0:
-                    cut = (indexed[0] * abs(self.trim[0])) + indexed[: self.trim[1]]
-                else:
-                    cut = indexed[self.trim[0] : self.trim[1]]
-            self.trim = tuple(self.trim)
 
         if not isinstance(self.file, list) and self.file.suffix.lower() == ".dgi":
             if self.file.with_suffix(".m2ts").exists():
@@ -144,6 +128,27 @@ class src_file(vs_object):
                 self.file = parse_m2ts_path(self.file)
 
         setattr(self, "clip", indexed)
+
+        if not self.trim:
+            setattr(self, "clip_cut", indexed)
+            return
+
+        if isinstance(self.trim, list):
+            if len(self.trim) > 1:
+                cut = core.std.Splice([indexed[trim[0] : trim[1]] for trim in self.trim])
+                setattr(self, "clip_cut", cut)
+                return
+            else:
+                self.trim = self.trim[0]
+
+        start, end = self.trim
+        start = 0 if start is None else start
+
+        if end is None or end == 0:
+            cut = (indexed[0] * abs(start)) + indexed if start < 0 else indexed[start:]
+        else:
+            cut = (indexed[0] * abs(start)) + indexed[:end] if start < 0 else indexed[start:end]
+
         setattr(self, "clip_cut", cut)
 
     @property
