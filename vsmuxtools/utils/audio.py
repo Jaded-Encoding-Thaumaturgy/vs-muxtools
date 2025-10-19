@@ -71,7 +71,7 @@ def audio_async_render(
     """
     if progress:
         try:
-            from vstools.functions.render.progress import get_render_progress
+            from vstools.functions.render.progress import get_render_progress  # type: ignore
         except:
             from vstools.functions.progress import get_render_progress
         p = get_render_progress()

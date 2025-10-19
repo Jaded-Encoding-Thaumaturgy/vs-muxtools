@@ -61,12 +61,12 @@ class FFMpegEncoder(VideoEncoder, ABC):
         props = props_dict(clip, True)
         # fmt: off
         prop_args = [
-            "-r", f"{props.get('fps_num')}/{props.get('fps_den')}",
-            "-color_range", props.get("range"),
-            "-colorspace", props.get("colormatrix"),
-            "-color_primaries", props.get("primaries"),
-            "-color_trc", props.get("transfer"),
-            "-chroma_sample_location", props.get("chromaloc"),
+            "-r", f"{props['fps_num']}/{props['fps_den']}",
+            "-color_range", props["range"],
+            "-colorspace", props["colormatrix"],
+            "-color_primaries", props["primaries"],
+            "-color_trc", props["transfer"],
+            "-chroma_sample_location", props["chromaloc"],
         ]
         input_arguments = prop_args + ["-f", "yuv4mpegpipe", "-i", "-"] + ["-pix_fmt", self._pixfmt_for_clip(clip)]
         return input_arguments, prop_args
@@ -75,7 +75,7 @@ class FFMpegEncoder(VideoEncoder, ABC):
 
 @dataclass
 class SupportsQP(VideoEncoder):
-    settings: str | PathLike | None = None
+    settings: str | PathLike | list[str] | None = None
     zones: Zone | list[Zone] | None = None
     qp_file: PathLike | bool | None = None
     qp_clip: src_file | vs.VideoNode | None = None
@@ -95,6 +95,8 @@ class SupportsQP(VideoEncoder):
             if isinstance(self.qp_clip, src_file):
                 self.qp_clip = self.qp_clip.src_cut
             return generate_qp_file(self.qp_clip, start_frame)
+
+        return ""
 
     def _init_settings(self, x265: bool):
         if not self.settings:
@@ -119,7 +121,7 @@ class SupportsQP(VideoEncoder):
             self.settings.extend(props_args(clip, x265, self.sar))
 
     @abstractmethod
-    def _encode_clip(self, clip: vs.VideoNode, out: Path) -> Path: ...
+    def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str, start_frame: int = 0) -> Path: ...
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         if clip.format.bits_per_sample > (12 if self.x265 else 10):

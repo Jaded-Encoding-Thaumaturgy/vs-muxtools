@@ -13,7 +13,7 @@ __all__ = ["IntermediaryEncoder", "ProResIntermediary"]
 
 
 @dataclass(config=allow_extra)
-class IntermediaryEncoder(VideoEncoder):
+class IntermediaryEncoder:
     """
     Encoder that will create an intermediary first and then encode that intermediary to the target encoders.
 
@@ -33,7 +33,7 @@ class IntermediaryEncoder(VideoEncoder):
         intermediary = self.encoder.encode(clip, get_workdir() / "intermediary")
         from vsmuxtools import src as src_index
 
-        index_clip = self.indexer(str(intermediary.file)) if self.indexer else src_index(intermediary.file, force_lsmas=True)
+        index_clip = self.indexer(str(intermediary.file)) if self.indexer else src_index(intermediary.file)
 
         outputs = list[VideoFile]()
 
@@ -47,7 +47,7 @@ class IntermediaryEncoder(VideoEncoder):
 
 
 @dataclass(config=allow_extra)
-class ProResIntermediary(VideoEncoder):
+class ProResIntermediary:
     """
     This encodes to prores first and will upscale chroma to 422 with point if needed and undo it before passing to other encoders.
 
@@ -71,13 +71,13 @@ class ProResIntermediary(VideoEncoder):
         except:
             raise error("You need to install vskernels for this", self)
         if clipf.subsampling_h != 0:
-            clip = Point.resample(clip, format=clipf.replace(subsampling_h=0))
+            clip = Point().resample(clip, format=clipf.replace(subsampling_h=0))
 
         encoder = IntermediaryEncoder(
             ProRes(self.profile),
             self.target_encoders
             if clipf.subsampling_h == 0
-            else [(enc, lambda x: depth(Point.resample(x, clipf), 10)) for enc in self.target_encoders],
+            else [(enc, lambda x: depth(Point().resample(x, clipf), 10)) for enc in self.target_encoders],
             self.indexer,
         )
         return encoder.encode(clip)

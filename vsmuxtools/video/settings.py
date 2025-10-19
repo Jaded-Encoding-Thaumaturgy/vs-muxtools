@@ -69,15 +69,18 @@ def shift_zones(zones: Zone | list[Zone] | None, start_frame: int = 0) -> list[Z
     newzones = list[Zone]()
 
     for zone in zones:
-        zone = list(zone)
-        zone[0] = zone[0] - start_frame
-        zone[1] = zone[1] - start_frame
-        if zone[1] < 0:
+        assert zone[0] is not None and zone[1] is not None
+        start = zone[0] - start_frame
+        end = zone[1] - start_frame
+        if end < 0:
             continue
-        if zone[0] < 0:
-            zone[0] = 0
-        zone = tuple(zone)
-        newzones.append(zone)
+        if start < 0:
+            start = 0
+
+        new_zone = list(zone)
+        new_zone[0] = start
+        new_zone[1] = end
+        newzones.append(tuple(new_zone))  # type: ignore
 
     return newzones
 
@@ -91,9 +94,9 @@ def zones_to_args(zones: Zone | list[Zone] | None, x265: bool) -> list[str]:
     zones_settings: str = ""
     for i, zone in enumerate(zones):
         if is_full_zone(zone):
-            if x265 and zone[2].lower() not in ["q", "b"]:
+            if x265 and str(zone[2]).lower() not in ["q", "b"]:
                 raise error(f"Zone '{zone}' is invalid for x265. Please only use b or q.")
-            zones_settings += f"{zone[0]},{zone[1]},{zone[2]}={zone[3]}"
+            zones_settings += f"{zone[0]},{zone[1]},{zone[2]}={zone[3]}"  # type: ignore
         else:
             zones_settings += f"{zone[0]},{zone[1]},b={zone[2]}"
         if i != len(zones) - 1:
@@ -210,10 +213,10 @@ sb265 = sb
 sb264 = settings_builder_x264
 
 
-def file_or_default(file: PathLike, default: str, no_warn: bool = False) -> tuple[str | list[str], bool]:
+def file_or_default(file: PathLike | list[str], default: str, no_warn: bool = False) -> tuple[str | list[str], bool]:
     if isinstance(file, list):
         return file, False
-    if os.path.isfile(file):
+    if file is not None and os.path.isfile(file):
         file = ensure_path(file, None)
         if file.exists():
             with open(file, "r") as r:
