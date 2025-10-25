@@ -28,7 +28,6 @@ from muxtools import (
     TrackType,
     GlobSearch,
     error,
-    sanitize_trims,
     debug,
     warn,
     ParsedFile,

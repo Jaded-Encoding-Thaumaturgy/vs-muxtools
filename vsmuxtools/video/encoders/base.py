@@ -104,7 +104,7 @@ class SupportsQP(VideoEncoder):
             self.was_file = p
             self.settings = s
         else:
-            s, p = file_or_default(self.settings, self.settings, True)
+            s, p = file_or_default(self.settings, str(self.settings), True)
             self.was_file = p
             self.settings = s
 
@@ -113,15 +113,15 @@ class SupportsQP(VideoEncoder):
 
     def _update_settings(self, clip: vs.VideoNode, x265: bool):
         if self.was_file:
-            self.settings = fill_props(self.settings, clip, x265, self.sar)
+            self.settings = fill_props(str(self.settings), clip, x265, self.sar)
 
-        self.settings = self.settings if isinstance(self.settings, list) else shlex.split(self.settings)
+        self.settings = self.settings if isinstance(self.settings, list) else shlex.split(str(self.settings))
 
         if self.add_props:
             self.settings.extend(props_args(clip, x265, self.sar))
 
     @abstractmethod
-    def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str, start_frame: int = 0) -> Path: ...
+    def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str | None, start_frame: int = 0) -> Path: ...
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         if clip.format.bits_per_sample > (12 if self.x265 else 10):
@@ -129,7 +129,7 @@ class SupportsQP(VideoEncoder):
             clip = finalize_clip(clip, 10)
         self._update_settings(clip, self.x265)
         out = make_output(
-            Path(self.qp_clip.file).stem if isinstance(self.qp_clip, src_file) else "encoded",
+            ensure_path_exists(self.qp_clip.file, self).stem if isinstance(self.qp_clip, src_file) else "encoded",
             "265" if self.x265 else "264",
             "encoded" if isinstance(self.qp_clip, src_file) else "",
             outfile,
@@ -163,4 +163,4 @@ class SupportsQP(VideoEncoder):
 
         info("Remuxing and merging parts...")
         merge_parts(fout, out, keyframes, parts, self.quiet_merging)
-        return VideoFile(out, source=self.qp_clip.file if isinstance(self.qp_clip, src_file) else None)
+        return VideoFile(out, source=ensure_path_exists(self.qp_clip.file, self) if isinstance(self.qp_clip, src_file) else None)

@@ -3,10 +3,11 @@ from . import utils, video, extension
 from .utils import *
 from .video import *
 
+# TODO: Figure out something for the redefinition of modules here
 from muxtools.main import *
-from muxtools.audio import *
-from muxtools.muxing import *
-from muxtools.subtitle import *
-from muxtools.utils import *
+from muxtools.audio import *  # type: ignore
+from muxtools.muxing import *  # type: ignore
+from muxtools.subtitle import *  # type: ignore
+from muxtools.utils import *  # type: ignore
 
-from .extension import *
+from .extension import *  # type: ignore
