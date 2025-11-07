@@ -47,7 +47,7 @@ build-backend = "hatchling.build"
 "Source Code" = "https://github.com/Vodes/vs-muxtools"
 
 [tool.uv.sources]
-muxtools = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/muxtools.git", branch = "typing-cope" }
+muxtools = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/muxtools.git" }
 
 [tool.ruff]
 line-length = 150
