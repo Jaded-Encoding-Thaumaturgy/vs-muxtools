@@ -51,7 +51,7 @@ def do_audio(
     timesource: TimeSourceT = None,
     timescale: TimeScaleT = TimeScale.MKV,
     num_frames: int = 0,
-    extractor: Extractor = FFMpeg.Extractor(),
+    extractor: Extractor | None = FFMpeg.Extractor(),
     trimmer: Trimmer | None = AutoTrimmer(),
     encoder: Encoder | None = AutoEncoder(),
     quiet: bool = True,
@@ -109,7 +109,8 @@ def do_audio(
     if timesource is None:
         timesource = Fraction(24000, 1001)
 
-    return mt_audio(fileIn, track, trims, timesource, timescale, num_frames, extractor, trimmer, encoder, quiet, output)
+    # TODO: Check why this typecheck fails lol
+    return mt_audio(fileIn, track, trims, timesource, timescale, num_frames, extractor, trimmer, encoder, quiet, output)  # type: ignore
 
 
 encode_audio = do_audio

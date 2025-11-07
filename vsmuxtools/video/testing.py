@@ -48,7 +48,7 @@ def generate_settings(settings: str) -> list[tuple[str, str]]:
     yes = ["y", "yes", "true"]
     no = ["n", "no", "false"]
     pattern = re.compile(r"\[(.*?(?:\/|\,).*?)\]")
-    variable_args = dict[str, str]({k: v for (k, v) in settings_to_dict(settings).items() if (v and pattern.search(v)) or pattern.search(k)})
+    variable_args = dict[str, str]({k: str(v) for (k, v) in settings_to_dict(settings).items() if (v and pattern.search(v)) or pattern.search(k)})
     args_dict = dict[str, str | None]({k: v for (k, v) in settings_to_dict(settings).items() if k not in variable_args.keys()})
 
     settings_list = list[tuple[str, str]]()
@@ -99,7 +99,7 @@ class SettingsTester:
     """
 
     encoder: VideoEncoder
-    encodes = list[tuple[str | None, str]]()
+    encodes: list[tuple[str | None, str]]
     qp_file: str | None = None
 
     def __init__(self, settings: str | list[str], encoder: VideoEncoder | None = None, qp_clip: SRC_FILE | vs.VideoNode | None = None) -> None:
@@ -113,7 +113,7 @@ class SettingsTester:
             self.qp_file = self.encoder._get_qpfile()
 
         if isinstance(settings, str):
-            self.encodes = generate_settings(settings)
+            self.encodes = generate_settings(settings)  # type: ignore
         else:
             self.encodes = [(None, s) for s in settings]
 
@@ -125,18 +125,18 @@ class SettingsTester:
                                     This might obviously end up using quite a lot of ram.
         """
         for encode in self.encodes:
-            encoder = self.encoder.__class__(settings=encode[1])
+            encoder = self.encoder.__class__(settings=encode[1])  # type: ignore
             encoder.resumable = False
             if isinstance(self.encoder, SupportsQP) and self.qp_file:
-                encoder.qp_file = self.qp_file
+                encoder.qp_file = self.qp_file  # type: ignore
 
             out = make_output("encode", "test", suffix="" if not encode[0] else f"[{encode[0]}]")
 
             f = encoder.encode(clip, out)
             if output_clips:
-                done = src(f.file, True)
+                done = src(f.file)
                 try:
-                    from vspreview import set_output
+                    from vspreview import set_output  # type: ignore
 
                     set_output(done, name=encode[0], cache=False)
                 except:

@@ -61,12 +61,12 @@ class FFMpegEncoder(VideoEncoder, ABC):
         props = props_dict(clip, True)
         # fmt: off
         prop_args = [
-            "-r", f"{props.get('fps_num')}/{props.get('fps_den')}",
-            "-color_range", props.get("range"),
-            "-colorspace", props.get("colormatrix"),
-            "-color_primaries", props.get("primaries"),
-            "-color_trc", props.get("transfer"),
-            "-chroma_sample_location", props.get("chromaloc"),
+            "-r", f"{props['fps_num']}/{props['fps_den']}",
+            "-color_range", props["range"],
+            "-colorspace", props["colormatrix"],
+            "-color_primaries", props["primaries"],
+            "-color_trc", props["transfer"],
+            "-chroma_sample_location", props["chromaloc"],
         ]
         input_arguments = prop_args + ["-f", "yuv4mpegpipe", "-i", "-"] + ["-pix_fmt", self._pixfmt_for_clip(clip)]
         return input_arguments, prop_args
@@ -75,7 +75,7 @@ class FFMpegEncoder(VideoEncoder, ABC):
 
 @dataclass
 class SupportsQP(VideoEncoder):
-    settings: str | PathLike | None = None
+    settings: str | PathLike | list[str] | None = None
     zones: Zone | list[Zone] | None = None
     qp_file: PathLike | bool | None = None
     qp_clip: src_file | vs.VideoNode | None = None
@@ -96,13 +96,15 @@ class SupportsQP(VideoEncoder):
                 self.qp_clip = self.qp_clip.src_cut
             return generate_qp_file(self.qp_clip, start_frame)
 
+        return ""
+
     def _init_settings(self, x265: bool):
         if not self.settings:
             s, p = file_or_default(f"{'x265' if x265 else 'x264'}_settings", sb265() if x265 else sb264())
             self.was_file = p
             self.settings = s
         else:
-            s, p = file_or_default(self.settings, self.settings, True)
+            s, p = file_or_default(self.settings, str(self.settings), True)
             self.was_file = p
             self.settings = s
 
@@ -111,15 +113,15 @@ class SupportsQP(VideoEncoder):
 
     def _update_settings(self, clip: vs.VideoNode, x265: bool):
         if self.was_file:
-            self.settings = fill_props(self.settings, clip, x265, self.sar)
+            self.settings = fill_props(str(self.settings), clip, x265, self.sar)
 
-        self.settings = self.settings if isinstance(self.settings, list) else shlex.split(self.settings)
+        self.settings = self.settings if isinstance(self.settings, list) else shlex.split(str(self.settings))
 
         if self.add_props:
             self.settings.extend(props_args(clip, x265, self.sar))
 
     @abstractmethod
-    def _encode_clip(self, clip: vs.VideoNode, out: Path) -> Path: ...
+    def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str | None, start_frame: int = 0) -> Path: ...
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         if clip.format.bits_per_sample > (12 if self.x265 else 10):
@@ -127,7 +129,7 @@ class SupportsQP(VideoEncoder):
             clip = finalize_clip(clip, 10)
         self._update_settings(clip, self.x265)
         out = make_output(
-            Path(self.qp_clip.file).stem if isinstance(self.qp_clip, src_file) else "encoded",
+            ensure_path_exists(self.qp_clip.file, self).stem if isinstance(self.qp_clip, src_file) else "encoded",
             "265" if self.x265 else "264",
             "encoded" if isinstance(self.qp_clip, src_file) else "",
             outfile,
@@ -161,4 +163,4 @@ class SupportsQP(VideoEncoder):
 
         info("Remuxing and merging parts...")
         merge_parts(fout, out, keyframes, parts, self.quiet_merging)
-        return VideoFile(out, source=self.qp_clip.file if isinstance(self.qp_clip, src_file) else None)
+        return VideoFile(out, source=ensure_path_exists(self.qp_clip.file, self) if isinstance(self.qp_clip, src_file) else None)

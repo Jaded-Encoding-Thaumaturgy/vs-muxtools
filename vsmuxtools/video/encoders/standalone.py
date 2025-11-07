@@ -50,12 +50,12 @@ class x264(SupportsQP):
         self.executable = get_executable("x264")
         self._init_settings(self.x265)
 
-    def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str, start_frame: int = 0) -> Path:
+    def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str | None, start_frame: int = 0) -> Path:
         args = [self.executable, "-o", str(out.resolve())]
         if qpfile:
             args.extend(["--qpfile", qpfile])
         if self.settings:
-            args.extend(self.settings if isinstance(self.settings, list) else shlex.split(self.settings))
+            args.extend(self.settings if isinstance(self.settings, list) else shlex.split(str(self.settings)))
         if self.zones:
             self.zones = norm_zones(clip, self.zones)
             if start_frame:
@@ -107,7 +107,7 @@ class x265(SupportsQP):
         self.executable = get_executable("x265")
         self._init_settings(self.x265)
 
-    def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str, start_frame: int = 0) -> Path:
+    def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str | None, start_frame: int = 0) -> Path:
         args = [self.executable, "-o", str(out.resolve())]
         if self.csv:
             if isinstance(self.csv, bool):
@@ -119,7 +119,7 @@ class x265(SupportsQP):
         if qpfile:
             args.extend(["--qpfile", qpfile])
         if self.settings:
-            args.extend(self.settings if isinstance(self.settings, list) else shlex.split(self.settings))
+            args.extend(self.settings if isinstance(self.settings, list) else shlex.split(str(self.settings)))
         if self.zones:
             self.zones = norm_zones(clip, self.zones)
             if start_frame:
@@ -223,6 +223,8 @@ class SVTAV1(VideoEncoder):
         clip_props = props_dict(clip, False, SVT_AV1_RANGES)
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
         encoder = get_binary_version(self.executable, r"(SVT-AV1.+?(?:v\d+.\d+.\d[^ ]+|[0-9a-f]{8,40}))", ["--version"])
+        assert encoder
+
         tags = dict[str, str](ENCODER=encoder)
         args = [self.executable, "-i", "-", "--output", str(output), "--preset", str(self.preset)]
         if self.qp_clip:

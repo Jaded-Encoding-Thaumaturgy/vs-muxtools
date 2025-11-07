@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Sequence, TYPE_CHECKING, MutableMapping
+from typing import Callable, Sequence, TYPE_CHECKING, MutableMapping, Any
 from fractions import Fraction
 from enum import IntEnum
 from vstools import (
@@ -28,7 +28,6 @@ from muxtools import (
     TrackType,
     GlobSearch,
     error,
-    sanitize_trims,
     debug,
     warn,
     ParsedFile,
@@ -70,16 +69,16 @@ class SourceFilter(IntEnum):
 
 class src_file(vs_object):
     file: Path | list[Path]
-    trim: Trim = None
+    trim: Trim | None = None
     preview_sourcefilter: SourceFilter | None
     sourcefilter: SourceFilter
     idx: Callable[[str], vs.VideoNode] | None = None
-    idx_args = {}
+    idx_args: dict[str, Any] = {}
 
     def __init__(
         self,
         file: PathLike | GlobSearch | Sequence[PathLike],
-        trim: Trim = None,
+        trim: Trim | None = None,
         preview_sourcefilter: SourceFilter | None = SourceFilter.FFMS2,
         sourcefilter: SourceFilter = SourceFilter.BESTSOURCE,
         idx: Callable[[str], vs.VideoNode] | None = None,
@@ -150,13 +149,13 @@ class src_file(vs_object):
     def src(self) -> vs.VideoNode:
         if not hasattr(self, "clip"):
             self.__index_clip()
-        return self.clip
+        return self.clip  # type: ignore
 
     @property
     def src_cut(self) -> vs.VideoNode:
         if not hasattr(self, "clip_cut"):
             self.__index_clip()
-        return self.clip_cut
+        return self.clip_cut  # type: ignore
 
     def init(
         self,
@@ -249,19 +248,21 @@ class src_file(vs_object):
     ) -> "src_file":
         root_dir = ensure_path_exists(root_dir, "BDMV", True)
         mpls = core.mpls.Read(str(root_dir), playlist, angle)
-        clips: list[str] = mpls["clip"]
+        playlist_clips: list[str] = mpls["clip"]
         if entries is not None:
             if isinstance(entries, int):
-                clips = clips[entries]
+                clips = playlist_clips[entries]
             elif isinstance(entries, list):
-                entries = sanitize_trims(entries)
+                clips = [file for index, file in enumerate(playlist_clips) if index in entries]
             else:
                 if entries[0] is None and entries[1]:
-                    clips = clips[: entries[1]]
+                    clips = playlist_clips[: entries[1]]
                 elif entries[1] is None:
-                    clips = clips[entries[0] :]
+                    clips = playlist_clips[entries[0] :]
                 else:
-                    clips = clips[entries[0] : entries[1]]
+                    clips = playlist_clips[entries[0] : entries[1]]
+        else:
+            clips = playlist_clips
         return src_file(clips, trim, preview_sourcefilter, sourcefilter, idx, **kwargs)
 
     @classproperty
@@ -315,7 +316,7 @@ def src(
 
     is_previewing = False
     try:
-        from vspreview import is_preview
+        from vspreview import is_preview  # type: ignore
 
         is_previewing = is_preview()
     except:
@@ -371,7 +372,7 @@ def _call_sourcefilter(fileIn: Path, sourcefilter: SourceFilter, **kwargs) -> vs
             raise error(f"Invalid sourcefilter passed! ({sourcefilter})", src)
 
 
-def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: vs.VideoNode | Fraction = Fraction(24000, 1001)) -> int:
+def frames_to_samples(frame: int | None, sample_rate: vs.AudioNode | int = 48000, fps: vs.VideoNode | Fraction = Fraction(24000, 1001)) -> int:
     """
     Converts a frame number to a sample number
 
@@ -381,7 +382,7 @@ def frames_to_samples(frame: int, sample_rate: vs.AudioNode | int = 48000, fps: 
 
     :return:                The sample number
     """
-    if frame == 0:
+    if not frame:
         return 0
     sample_rate = sample_rate.sample_rate if isinstance(sample_rate, vs.AudioNode) else sample_rate
     fps = Fraction(fps.fps_num, fps.fps_den) if isinstance(fps, vs.VideoNode) else fps

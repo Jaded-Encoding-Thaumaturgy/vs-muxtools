@@ -35,9 +35,10 @@ class Chapters(Ch):
             self.timestamps = resolve_timesource_and_scale(timesource if timesource else clip_fps, timescale, caller=self)
             self.chapters = parse_chapters_bdmv(chapter_source.file, clip_fps, chapter_source.src_cut.num_frames, _print)
             if self.chapters and chapter_source.trim:
-                self.trim(chapter_source.trim[0], chapter_source.trim[1], chapter_source.src_cut.num_frames)
+                self.trim(chapter_source.trim[0] or 0, chapter_source.trim[1] or 0, chapter_source.src_cut.num_frames)
                 if _print:
                     print("After trim:")
                     self.print()
         else:
-            super().__init__(chapter_source, timesource or Fraction(24000, 1001), timescale, _print)
+            # TODO: Why does this fail too?
+            super().__init__(chapter_source, timesource or Fraction(24000, 1001), timescale, _print)  # type: ignore

@@ -49,26 +49,26 @@ def fill_props(settings: str, clip: vs.VideoNode, x265: bool, sar: str | None = 
         sarnum = sar if ":" not in sar else sar.split(":")[0]
         sarden = sar if ":" not in sar else sar.split(":")[1]
     else:
-        sarnum = props.get("sarnum")
-        sarden = props.get("sarden")
+        sarnum = props["sarnum"]
+        sarden = props["sarden"]
         if sarnum != "1" or sarden != "1":
             warn(f"Are you sure your SAR ({sarnum}:{sarden}) is correct?\nAre you perhaps working on an anamorphic source?", None, 2)
-    settings = re.sub(r"{chromaloc(?::.)?}", props.get("chromaloc"), settings)
-    settings = re.sub(r"{primaries(?::.)?}", props.get("primaries"), settings)
-    settings = re.sub(r"{bits(?::.)?}", props.get("depth"), settings)
-    settings = re.sub(r"{matrix(?::.)?}", props.get("colormatrix"), settings)
-    settings = re.sub(r"{range(?::.)?}", props.get("range"), settings)
-    settings = re.sub(r"{transfer(?::.)?}", props.get("transfer"), settings)
-    settings = re.sub(r"{frames(?::.)?}", props.get("frames"), settings)
-    settings = re.sub(r"{fps_num(?::.)?}", props.get("fps_num"), settings)
-    settings = re.sub(r"{fps_den(?::.)?}", props.get("fps_den"), settings)
-    settings = re.sub(r"{min_keyint(?::.)?}", props.get("min_keyint"), settings)
-    settings = re.sub(r"{keyint(?::.)?}", props.get("keyint"), settings)
+    settings = re.sub(r"{chromaloc(?::.)?}", props["chromaloc"], settings)
+    settings = re.sub(r"{primaries(?::.)?}", props["primaries"], settings)
+    settings = re.sub(r"{bits(?::.)?}", props["depth"], settings)
+    settings = re.sub(r"{matrix(?::.)?}", props["colormatrix"], settings)
+    settings = re.sub(r"{range(?::.)?}", props["range"], settings)
+    settings = re.sub(r"{transfer(?::.)?}", props["transfer"], settings)
+    settings = re.sub(r"{frames(?::.)?}", props["frames"], settings)
+    settings = re.sub(r"{fps_num(?::.)?}", props["fps_num"], settings)
+    settings = re.sub(r"{fps_den(?::.)?}", props["fps_den"], settings)
+    settings = re.sub(r"{min_keyint(?::.)?}", props["min_keyint"], settings)
+    settings = re.sub(r"{keyint(?::.)?}", props["keyint"], settings)
     settings = re.sub(r"{sarnum(?::.)?}", sarnum, settings)
     settings = re.sub(r"{sarden(?::.)?}", sarden, settings)
-    settings = re.sub(r"{min_luma(?::.)?}", props.get("min_luma"), settings)
-    settings = re.sub(r"{max_luma(?::.)?}", props.get("max_luma"), settings)
-    settings = re.sub(r"{lookahead(?::.)?}", props.get("lookahead"), settings)
+    settings = re.sub(r"{min_luma(?::.)?}", props["min_luma"], settings)
+    settings = re.sub(r"{max_luma(?::.)?}", props["max_luma"], settings)
+    settings = re.sub(r"{lookahead(?::.)?}", props["lookahead"], settings)
     return settings
 
 
@@ -88,19 +88,19 @@ def props_args(clip: vs.VideoNode, x265: bool, sar: str | None = None) -> list[s
 
     # fmt: off
     args.extend([
-        "--input-depth", props.get("depth"),
-        "--output-depth", props.get("depth"),
-        "--transfer", props.get("transfer"),
-        "--chromaloc", props.get("chromaloc"),
-        "--colormatrix", props.get("colormatrix"),
-        "--range", props.get("range"),
-        "--colorprim", props.get("primaries"),
+        "--input-depth", props["depth"],
+        "--output-depth", props["depth"],
+        "--transfer", props["transfer"],
+        "--chromaloc", props["chromaloc"],
+        "--colormatrix", props["colormatrix"],
+        "--range", props["range"],
+        "--colorprim", props["primaries"],
         "--sar", f"{sarnum}:{sarden}"
     ])
     if x265:
         args.extend([
-            "--min-luma", props.get("min_luma"),
-            "--max-luma", props.get("max_luma")
+            "--min-luma", props["min_luma"],
+            "--max-luma", props["max_luma"]
         ])
     return args
     # fmt: on

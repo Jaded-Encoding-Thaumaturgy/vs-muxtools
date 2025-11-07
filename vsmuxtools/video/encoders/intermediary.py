@@ -1,6 +1,6 @@
-from typing import Union
+from typing import Sequence
 from collections.abc import Callable
-from vstools import vs, GenericVSFunction, get_video_format, depth
+from vstools import vs, get_video_format, depth
 
 from .base import VideoEncoder
 from .ffmpeg import ProRes
@@ -12,8 +12,11 @@ from muxtools.utils.dataclass import dataclass, allow_extra
 __all__ = ["IntermediaryEncoder", "ProResIntermediary"]
 
 
+VS_FUNCTION = Callable[[vs.VideoNode], vs.VideoNode]
+
+
 @dataclass(config=allow_extra)
-class IntermediaryEncoder(VideoEncoder):
+class IntermediaryEncoder:
     """
     Encoder that will create an intermediary first and then encode that intermediary to the target encoders.
 
@@ -26,14 +29,14 @@ class IntermediaryEncoder(VideoEncoder):
     """
 
     encoder: VideoEncoder
-    target_encoders: list[Union[VideoEncoder, tuple[VideoEncoder, GenericVSFunction]]]
+    target_encoders: Sequence[VideoEncoder | tuple[VideoEncoder, VS_FUNCTION]]
     indexer: Callable[[str], vs.VideoNode] | None = None
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> list[VideoFile]:
         intermediary = self.encoder.encode(clip, get_workdir() / "intermediary")
         from vsmuxtools import src as src_index
 
-        index_clip = self.indexer(str(intermediary.file)) if self.indexer else src_index(intermediary.file, force_lsmas=True)
+        index_clip = self.indexer(str(intermediary.file)) if self.indexer else src_index(intermediary.file)
 
         outputs = list[VideoFile]()
 
@@ -47,7 +50,7 @@ class IntermediaryEncoder(VideoEncoder):
 
 
 @dataclass(config=allow_extra)
-class ProResIntermediary(VideoEncoder):
+class ProResIntermediary:
     """
     This encodes to prores first and will upscale chroma to 422 with point if needed and undo it before passing to other encoders.
 
@@ -60,7 +63,7 @@ class ProResIntermediary(VideoEncoder):
                                 Chooses the Standard/Default profile for 422 and the '4444' profile for 444 clips if None.
     """
 
-    target_encoders: list[VideoEncoder]
+    target_encoders: Sequence[VideoEncoder]
     indexer: Callable[[str], vs.VideoNode] | None = None
     profile: ProResProfile | int | None = None
 
@@ -71,13 +74,13 @@ class ProResIntermediary(VideoEncoder):
         except:
             raise error("You need to install vskernels for this", self)
         if clipf.subsampling_h != 0:
-            clip = Point.resample(clip, format=clipf.replace(subsampling_h=0))
+            clip = Point().resample(clip, format=clipf.replace(subsampling_h=0))
+
+        targets_with_resample = [(enc, lambda x: depth(Point().resample(x, clipf), 10)) for enc in self.target_encoders]
 
         encoder = IntermediaryEncoder(
             ProRes(self.profile),
-            self.target_encoders
-            if clipf.subsampling_h == 0
-            else [(enc, lambda x: depth(Point.resample(x, clipf), 10)) for enc in self.target_encoders],
+            self.target_encoders if clipf.subsampling_h == 0 else targets_with_resample,
             self.indexer,
         )
         return encoder.encode(clip)
