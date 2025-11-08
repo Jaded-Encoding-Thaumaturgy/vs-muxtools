@@ -96,7 +96,8 @@ def props_args(clip: vs.VideoNode, x265: bool, sar: str | None = None) -> list[s
         "--colormatrix", props["colormatrix"],
         "--range", props["range"],
         "--colorprim", props["primaries"],
-        "--sar", f"{sarnum}:{sarden}"
+        "--sar", f"{sarnum}:{sarden}",
+        "--frames", props["frames"]
     ])
     if x265:
         args.extend([
