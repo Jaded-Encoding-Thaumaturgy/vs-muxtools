@@ -1,6 +1,7 @@
 import re
 
 from muxtools import warn
+from muxtools.helpers.bsf import BSF_Matrix, BSF_Primaries, BSF_Transfer
 from vstools import ChromaLocation, ColorRange, Matrix, Primaries, Transfer, vs, get_video_format, KwargsT
 
 __all__ = ["props_dict", "fill_props", "props_args", "X264_RANGES", "SVT_AV1_RANGES"]
@@ -16,17 +17,17 @@ def props_dict(
     clip_format = get_video_format(clip)
     props = clip.get_frame(0).props
     chromaloc = ChromaLocation.from_video(clip)
-    transfer = Transfer.from_video(clip)
-    matrix = Matrix.from_video(clip)
-    primaries = Primaries.from_video(clip)
+    transfer = BSF_Transfer(Transfer.from_video(clip).value)
+    matrix = BSF_Matrix(Matrix.from_video(clip).value)
+    primaries = BSF_Primaries(Primaries.from_video(clip).value)
 
     str_props = KwargsT(
         depth=str(clip_format.bits_per_sample),
         range=color_range_strings[0] if color_range.is_full else color_range_strings[1],
         chromaloc=str(chromaloc.string if use_strings and chromaloc_string else chromaloc.value),
-        transfer=str(transfer.value if not use_strings else transfer.string),
-        colormatrix=str(matrix.value if not use_strings else matrix.string),
-        primaries=str(primaries.value if not use_strings else primaries.string),
+        transfer=str(transfer.value if not use_strings else transfer.name.lower()),
+        colormatrix=str(matrix.value if not use_strings else matrix.name.lower()),
+        primaries=str(primaries.value if not use_strings else primaries.name.lower()),
         sarnum=str(props.get("_SARNum", 1)),
         sarden=str(props.get("_SARDen", 1)),
         keyint=str(round(clip.fps) * 10),
