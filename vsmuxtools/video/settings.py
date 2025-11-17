@@ -3,7 +3,8 @@ import re
 from typing import cast
 
 from muxtools import PathLike, ensure_path, error, warn
-from vstools import CustomValueError, vs
+from jetpytools import CustomValueError
+from vstools import vs
 
 from .encoders.types import Zone
 
