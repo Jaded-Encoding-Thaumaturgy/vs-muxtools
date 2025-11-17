@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import Callable, Sequence, TYPE_CHECKING, MutableMapping, Any
 from fractions import Fraction
+from jetpytools import KwargsT
 from enum import IntEnum
 from vstools import (
     vs,
     core,
     initialize_clip,
-    KwargsT,
     ColorRangeT,
     MatrixT,
     TransferT,

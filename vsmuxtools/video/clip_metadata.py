@@ -2,7 +2,8 @@ import re
 
 from muxtools import warn
 from muxtools.helpers.bsf import BSF_Matrix, BSF_Primaries, BSF_Transfer
-from vstools import ChromaLocation, ColorRange, Matrix, Primaries, Transfer, vs, get_video_format, KwargsT
+from jetpytools import KwargsT
+from vstools import ChromaLocation, ColorRange, Matrix, Primaries, Transfer, vs, get_video_format
 
 __all__ = ["props_dict", "fill_props", "props_args", "X264_RANGES", "SVT_AV1_RANGES"]
 
