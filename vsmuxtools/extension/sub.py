@@ -1,6 +1,5 @@
 from vstools import vs
 from fractions import Fraction
-from dataclasses import dataclass
 from datetime import timedelta
 from typing_extensions import Self
 
@@ -30,7 +29,6 @@ from ..utils.source import src_file
 __all__ = ["SubFile", "SubFilePGS"]
 
 
-@dataclass
 class SubFile(MTSubFile):
     """
     Utility class representing an ASS/SSA subtitle file with various functions to run on.
@@ -106,7 +104,6 @@ class SubFile(MTSubFile):
         return self.manipulate_lines(filter_lines)
 
 
-@dataclass
 class SubFilePGS(MTSubFilePGS):
     """
     Utility class representing a PGS/SUP subtitle file.
