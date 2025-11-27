@@ -1,8 +1,8 @@
 import shlex
 import subprocess
-from vstools import finalize_clip, vs
+from vstools import finalize_clip, vs, ChromaLocation
 from pathlib import Path
-from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, get_workdir
+from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, get_workdir, error
 from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
 
@@ -221,6 +221,14 @@ class SVTAV1(VideoEncoder):
         from vsmuxtools.video.clip_metadata import props_dict, SVT_AV1_RANGES
 
         clip_props = props_dict(clip, False, SVT_AV1_RANGES)
+        match int(clip_props["chromaloc"]):
+            case ChromaLocation.LEFT.value:
+                cloc = "left"
+            case ChromaLocation.TOP_LEFT.value:
+                cloc = "topleft"
+            case _:
+                raise error("AV1 only supports LEFT and TOPLEFT chroma locations!", self)
+
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
         encoder = get_binary_version(self.executable, r"(SVT-AV1.+?(?:v\d+.\d+.\d[^ ]+|[0-9a-f]{8,40}))", ["--version"])
         assert encoder
@@ -248,7 +256,7 @@ class SVTAV1(VideoEncoder):
             "--fps-num", clip_props.get("fps_num"),
             "--fps-denom", clip_props.get("fps_den"),
             "--input-depth", clip_props.get("depth"),
-            "--chroma-sample-position", clip_props.get("chromaloc"),
+            "--chroma-sample-position", cloc,
             "--color-primaries", clip_props.get("primaries"),
             "--transfer-characteristics", clip_props.get("transfer"),
             "--matrix-coefficients", clip_props.get("colormatrix"),
