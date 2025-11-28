@@ -5,8 +5,8 @@ version = "0.4.0"
 description = "The extension to muxtools with vapoursynth and encoding stuff"
 authors = [{ name = "Vodes", email = "vodes.imp@gmail.com" }]
 dependencies = [
-    "vapoursynth>=66",
-    "vsjetpack>=0.2.2",
+    "vapoursynth>=67",
+    "vsjetpack>=0.7.0",
     "numpy>=1.24.3",
     "muxtools>=0.4.0",
 ]
