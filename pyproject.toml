@@ -1,14 +1,14 @@
 
 [project]
 name = "vsmuxtools"
-version = "0.4.0"
+dynamic = ["version"]
 description = "The extension to muxtools with vapoursynth and encoding stuff"
 authors = [{ name = "Vodes", email = "vodes.imp@gmail.com" }]
 dependencies = [
     "vapoursynth>=67",
     "vsjetpack>=0.7.0",
     "numpy>=1.24.3",
-    "muxtools>=0.4.0",
+    "muxtools>=0.4.1",
 ]
 classifiers = [
     "Natural Language :: English",
@@ -40,14 +40,25 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27.0", "versioningit"]
 build-backend = "hatchling.build"
 
 [project.urls]
 "Source Code" = "https://github.com/Vodes/vs-muxtools"
 
-[tool.uv.sources]
-muxtools = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/muxtools.git" }
+[tool.hatch.build]
+artifacts = ["vsmuxtools/_version.py"]
+
+[tool.hatch.version]
+source = "versioningit"
+default-version = "0.0.0+unknown"
+next-version = "minor"
+write = { file = "vsmuxtools/_version.py", template = "__version__ = \"{normalized_version}\"\n__version_tuple__ = {version_tuple}" }
+
+[tool.hatch.version.format]
+distance = "{next_version}.dev{distance}+{vcs}{rev}"
+dirty = "{next_version}+dirty"
+distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}.dirty"
 
 [tool.ruff]
 line-length = 150
