@@ -73,7 +73,7 @@ def audio_async_render(
         try:
             from vstools.functions.render.progress import get_render_progress  # type: ignore
         except:
-            from vstools.functions.progress import get_render_progress
+            from vstools.functions.progress import get_render_progress  # type: ignore
         p = get_render_progress()
         task = p.add_task(progress, total=audio.num_frames)
         p.start()
