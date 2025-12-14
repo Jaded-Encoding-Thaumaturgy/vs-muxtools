@@ -11,6 +11,7 @@ from muxtools import (
     Extractor,
     AutoEncoder,
     AutoTrimmer,
+    AutoExtractor,
     FFMpeg,
     Trim,
     danger,
@@ -51,7 +52,7 @@ def do_audio(
     timesource: TimeSourceT = None,
     timescale: TimeScaleT = TimeScale.MKV,
     num_frames: int = 0,
-    extractor: Extractor | None = FFMpeg.Extractor(),
+    extractor: Extractor | None = AutoExtractor(),
     trimmer: Trimmer | None = AutoTrimmer(),
     encoder: Encoder | None = AutoEncoder(),
     quiet: bool = True,
@@ -73,7 +74,7 @@ def do_audio(
     :param num_frames:      Total number of frames, used for negative numbers in trims
                             Will be taken from input if it's a src_file
 
-    :param extractor:       Tool used to extract the audio (Will default to None if an AudioNode gets passed)
+    :param extractor:       Tool used to extract the audio (Will default to None if an AudioNode gets passed, otherwise FFMpeg)
     :param trimmer:         Tool used to trim the audio
                             AutoTrimmer means it will choose ffmpeg for lossy and Sox for lossless
 
