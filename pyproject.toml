@@ -52,7 +52,7 @@ artifacts = ["vsmuxtools/_version.py"]
 [tool.hatch.version]
 source = "versioningit"
 default-version = "0.0.0+unknown"
-next-version = "minor"
+next-version = "smallest"
 write = { file = "vsmuxtools/_version.py", template = "__version__ = \"{normalized_version}\"\n__version_tuple__ = {version_tuple}" }
 
 [tool.hatch.version.format]
