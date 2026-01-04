@@ -1,0 +1,42 @@
+name: Lint
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    env:
+      PYTHON_VER: "3.12"
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --no-install-package vapoursynth
+
+      - name: Run ruff check (Python ${{ env.PYTHON_VER }})
+        run: uv run --no-sync ruff check ./vsmuxtools/
+
+      - name: Run mypy (Python ${{ env.PYTHON_VER }})
+        run: uv run --no-sync mypy ./vsmuxtools/
+    
+      - name: Run ruff format (Python ${{ env.PYTHON_VER }})
+        run: uv run --no-sync ruff format --check ./vsmuxtools/
+
+      - name: Post webhook for failure
+        if: failure()
+        uses: Jaded-Encoding-Thaumaturgy/discord-failure-notifier@v1
+        with:
+          webhook-url: ${{ secrets.WEBHOOK_URL }}
+      

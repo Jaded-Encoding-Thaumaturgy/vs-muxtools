@@ -12,7 +12,6 @@ from muxtools import (
     AutoEncoder,
     AutoTrimmer,
     AutoExtractor,
-    FFMpeg,
     Trim,
     danger,
     uniquify_path,
