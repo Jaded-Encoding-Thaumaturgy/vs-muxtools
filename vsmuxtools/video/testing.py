@@ -130,7 +130,8 @@ class SettingsTester:
             if isinstance(self.encoder, SupportsQP) and self.qp_file:
                 encoder.qp_file = self.qp_file  # type: ignore
 
-            out = make_output("encode", "test", suffix="" if not encode[0] else f"[{encode[0]}]")
+            safe_filename = "" if not encode[0] else re.sub(r"[\<\>\*\\\:\|\?\"]", "_", encode[0])
+            out = make_output("encode", "test", suffix=safe_filename)
 
             f = encoder.encode(clip, out)
             if output_clips:
