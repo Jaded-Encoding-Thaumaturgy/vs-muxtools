@@ -196,7 +196,7 @@ def settings_builder_x264(
 
     if isinstance(deblock, list):
         deblock = f"{str(deblock[0])}:{str(deblock[1])}"
-    settings += f" --deblock={deblock}"
+    settings += f" --deblock {deblock}"
 
     for k, v in kwargs.items():
         prefix = "--"
