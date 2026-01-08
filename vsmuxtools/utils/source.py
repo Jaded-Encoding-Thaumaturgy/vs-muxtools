@@ -32,6 +32,8 @@ from muxtools import (
     warn,
     ParsedFile,
 )
+import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 
 from muxtools.audio.preprocess import classproperty
 
@@ -427,3 +429,83 @@ def generate_qp_file(clip: vs.VideoNode, start_frame: int = 0) -> str:
     clean_temp_files()
 
     return str(filepath.resolve())
+
+
+def generate_svt_av1_keyframes(clip: vs.VideoNode, start_frame: int = 0) -> np.ndarray[tuple[Any, ...], np.dtype[np.uint32]]:
+    frames = generate_keyframes(clip, start_frame)
+
+    if start_frame:
+        clip = clip[start_frame:]
+
+    diff_clip = clip.std.PlaneStats(clip[0] + clip, plane=0, prop="Luma")
+
+    frames.append(len(clip))
+    head = -1 # Because the result from generate_keyframes doesn't have `0`
+    current_frame = 0
+    svt_av1_frames = [0]
+    while head < len(frames) - 1:
+        head += 1
+
+        if frames[head] - current_frame < 97: # min scene length
+            if head != len(frames) - 1:
+                continue
+
+            else:
+                current_frame = frames[head]
+                svt_av1_frames.append(current_frame) # Only to get popped
+
+        elif frames[head] - current_frame <= 193: # max scene length
+            available_frames = []
+            for looka_head in range(head, len(frames)):
+                if frames[looka_head] - current_frame <= 193:
+                    available_frames.append(frames[looka_head])
+                else:
+                    break
+
+            selected_head = None
+            for structure in [32, 16, 8, 4, 2]:
+                for available_head in range(len(available_frames) - 1, -1, -1):
+                    if (available_frames[available_head] - current_frame) % structure == 1:
+                        selected_head = available_head
+                        break
+                if selected_head is not None:
+                    break
+
+            if selected_head is None:
+                selected_head = len(available_frames) - 1
+
+            head = head + selected_head
+            current_frame = frames[head]
+            svt_av1_frames.append(current_frame)
+
+        else:
+            selected_frame = None
+            diffs = np.array([frame.props["LumaDiff"] for frame in diff_clip[current_frame+129:
+                                                                             current_frame+193+1].frames()])
+            windows = sliding_window_view(diffs, 25)
+            median = np.median(windows, axis=1).reshape((-1, 1))
+            mad = np.median(np.abs(windows - median), axis=1).reshape((-1, 1))
+            thr = (median + 3.0 * mad).reshape((-1,))
+            thr = np.concatenate((np.full((12,), thr[0]), thr, np.full((12,), thr[-1])))
+            motion_frames = np.argwhere(diffs > thr).reshape((-1,))
+            motion_frames += current_frame + 129
+
+            if motion_frames.shape[0] != 0:
+                for structure in [32, 16, 8, 4]:
+                    for frame in motion_frames[::-1]:
+                        if (frame - current_frame) % structure == 1:
+                            selected_frame = frame
+                            break
+                    if selected_frame is not None:
+                        break
+
+            if selected_frame is None:
+                selected_frame = current_frame + 193
+
+            head -= 1
+            current_frame = selected_frame
+            svt_av1_frames.append(current_frame)
+
+    svt_av1_frames.pop()
+
+    return np.asarray(svt_av1_frames, dtype=np.uint32)
