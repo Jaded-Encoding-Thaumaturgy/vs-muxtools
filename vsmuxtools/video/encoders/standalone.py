@@ -178,7 +178,7 @@ class LosslessX264(VideoEncoder):
 class SVTAV1(VideoEncoder):
     """
     Uses SvtAv1EncApp to encode clip to an AV1 stream.
-    
+
     Do not use this for high fidelity encoding.
 
     You can use the available `settings_builder`s for a set of default parameters.
@@ -190,6 +190,7 @@ class SVTAV1(VideoEncoder):
     :param photon_noise:    Add a basic layer of light photon noise on top, serving a similar role as regrain / dither.
                             For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
     """
+
     sd_clip: vs.VideoNode | src_file | None = None
     photon_noise: bool = True
     _encoder_id: str | None = None
@@ -201,7 +202,7 @@ class SVTAV1(VideoEncoder):
             self.affinity = []
 
         self._encoder_id = get_binary_version(self.executable, r"(\S+ v\S+) \((?:release|debug)\)", ["--version"])
-        
+
         if not self._encoder_id:
             raise error("Couldn't parse SvtAv1EncApp version!", self)
 
@@ -210,11 +211,14 @@ class SVTAV1(VideoEncoder):
                 warn(f"Unexpected encoder version: {self._encoder_id}.", self)
                 warn(f"Encoder version expected by the settings_builder: {self._settings_builder_id}.", self, 2)
 
-        if not self.sd_clip and \
-           not self._encoder_id.startswith("SVT-AV1-Essential"):
-            warn("Providing a clip or a file for scene detection is highly recommended, as most SVT-AV1 versions don't have proper scene detection.", self, 2)
+        if not self.sd_clip and not self._encoder_id.startswith("SVT-AV1-Essential"):
+            warn(
+                "Providing a clip or a file for scene detection is highly recommended, as most SVT-AV1 versions don't have proper scene detection.",
+                self,
+                2,
+            )
 
-    def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:  
+    def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         if clip.format.bits_per_sample > 10:
             warn("SVT-AV1 doesn't support a bit depth over 10.\nClip will be dithered to 10 bit.", self, 2)
             clip = finalize_clip(clip, 10)

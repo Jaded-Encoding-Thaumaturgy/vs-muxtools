@@ -9,8 +9,15 @@ from vstools import vs
 
 from .encoders.types import Zone
 
-__all__ = ["settings_builder_x265", "settings_builder_x264", "sb", "sb265", "sb264",
-           "settings_builder_5fish_svt_av1_psy", "settings_builder_svt_av1_essential"]
+__all__ = [
+    "settings_builder_x265",
+    "settings_builder_x264",
+    "sb",
+    "sb265",
+    "sb264",
+    "settings_builder_5fish_svt_av1_psy",
+    "settings_builder_svt_av1_essential",
+]
 
 
 def is_full_zone(zone: Zone) -> bool:
@@ -212,56 +219,49 @@ def settings_builder_x264(
 
 
 def settings_builder_5fish_svt_av1_psy(
-    preset: int                     = 2,
-    crf: float                      = 20.00,
-
+    preset: int = 2,
+    crf: float = 20.00,
     # global
-    tune: int | None                = 0,
-    scm: int | None                 = 0,
-    noise_level_thr: int | None     = 16000,
-    chroma_qmc_bias: int | None     = 2,
+    tune: int | None = 0,
+    scm: int | None = 0,
+    noise_level_thr: int | None = 16000,
+    chroma_qmc_bias: int | None = 2,
     texture_preserving_qmc_bias: int | None = None,
-
     # me
-    enable_tf: int | None           = None,
-    kf_tf_strength: int | None      = None,
-    tf_strength: int | None         = None,
-
+    enable_tf: int | None = None,
+    kf_tf_strength: int | None = None,
+    tf_strength: int | None = None,
     # rc
-    balancing_q_bias: int | None    = 1,
+    balancing_q_bias: int | None = 1,
     balancing_luminance_q_bias: float | None = 5.0,
     qp_scale_compress_strength: float | None = None,
-    frame_luma_bias: int | None     = None,
-    noise_level_q_bias: int | None  = None,
+    frame_luma_bias: int | None = None,
+    noise_level_q_bias: int | None = None,
     enable_variance_boost: int | None = None,
     variance_boost_strength: int | None = 1,
-    variance_octile: int | None     = 7,
-    enable_alt_curve: int | None    = None,
-    low_q_taper: int | None         = None,
-
+    variance_octile: int | None = 7,
+    enable_alt_curve: int | None = None,
+    low_q_taper: int | None = None,
     # md & enc_dec
-    qm_min: int | None              = 8,
-    chroma_qm_min: int | None       = 10,
-    qm_max: int | None              = None,
-    chroma_qm_max: int | None       = None,
+    qm_min: int | None = 8,
+    chroma_qm_min: int | None = 10,
+    qm_max: int | None = None,
+    chroma_qm_max: int | None = None,
     noise_norm_strength: int | None = None,
-    ac_bias: float | None           = 1.0,
-    tx_bias: int | None             = None,
-    variance_md_bias: int | None    = 1,
+    ac_bias: float | None = 1.0,
+    tx_bias: int | None = None,
+    variance_md_bias: int | None = 1,
     variance_md_bias_thr: float | None = None,
-    max_32_tx_size: int | None      = None,
-    complex_hvs: int | None         = -1,
-
+    max_32_tx_size: int | None = None,
+    complex_hvs: int | None = -1,
     # dlf & cdef & rest
-    enable_dlf: int | None          = None,
-    dlf_bias: int | None            = 1,
+    enable_dlf: int | None = None,
+    dlf_bias: int | None = 1,
     filtering_noise_detection: int | None = None,
-    enable_cdef: int | None         = None,
-    cdef_bias: int | None           = 1,
-    enable_restoration: int | None  = None,
-    
-    progress: int | None            = 2,
-
+    enable_cdef: int | None = None,
+    cdef_bias: int | None = 1,
+    enable_restoration: int | None = None,
+    progress: int | None = 2,
     **kwargs,
 ):
     """
@@ -312,12 +312,9 @@ def settings_builder_svt_av1_essential(
     quality: str | None = "medium",
     preset: int | None = None,
     crf: int | None = None,
-
     scm: int | None = 0,
     luminance_qp_bias: int | None = 20,
-
     progress: int | None = 3,
-
     **kwargs,
 ):
     """
@@ -341,7 +338,7 @@ def settings_builder_svt_av1_essential(
     settings = settings_builder_svt_av1_essential(...)
     mini = SVTAV1(**settings).encode(final)
     ```
-    
+
     :param speed:           Adjust the speed.
                             `slower` (`--preset 2`) is the recommended starting point. `slow` (`--preset 4`) is faster.
     :param quality:         Adjust the quality.

@@ -432,18 +432,18 @@ def generate_qp_file(clip: vs.VideoNode, start_frame: int = 0) -> str:
 
 
 def generate_svt_av1_keyframes(
-        clip: vs.VideoNode,
-        start_frame: int = 0,
-        min_scene_length: int = 129,
-        min_still_scene_length: int = 193,
-        max_scene_length: int = 257,
-    ) -> np.ndarray[tuple[Any, ...], np.dtype[np.uint32]]:
+    clip: vs.VideoNode,
+    start_frame: int = 0,
+    min_scene_length: int = 129,
+    min_still_scene_length: int = 193,
+    max_scene_length: int = 257,
+) -> np.ndarray[tuple[Any, ...], np.dtype[np.uint32]]:
     """
     Run `generate_keyframes`, and then filter the WWXD keyframe result for SVT-AV1 derived encoders.
 
-    A huge contribution to the efficiency of SVT-AV1 derived encoders comes from its referencing system. 
-    SVT-AV1 derived encoders by default have a 32 frame hierarchical structure.  
-    It will first encode frame 0 as a key frame, followed by frame 32 referencing frame 0.  
+    A huge contribution to the efficiency of SVT-AV1 derived encoders comes from its referencing system.
+    SVT-AV1 derived encoders by default have a 32 frame hierarchical structure.
+    It will first encode frame 0 as a key frame, followed by frame 32 referencing frame 0.
     Since later frames will all be referencing these frames, these frames of the lowest temporal layer will be given very good q.
     After that, the encoder will continue with frame 16, referencing both frame 0 and frame 32.
     And then after frame 16, it'll be frame 8, frame 4, frame 2, frame 1, in this order.
@@ -463,7 +463,7 @@ def generate_svt_av1_keyframes(
     diff_clip = clip.std.PlaneStats(clip[0] + clip, plane=0, prop="Luma")
 
     frames.append(len(clip))
-    head = -1 # Because the result from generate_keyframes doesn't have `0`
+    head = -1  # Because the result from generate_keyframes doesn't have `0`
     current_frame = 0
     svt_av1_frames = [0]
     while head < len(frames) - 1:
@@ -476,7 +476,7 @@ def generate_svt_av1_keyframes(
 
             else:
                 current_frame = frames[head]
-                svt_av1_frames.append(current_frame) # Only to get popped
+                svt_av1_frames.append(current_frame)  # Only to get popped
 
         elif frames[head] - current_frame <= max_scene_length:
             available_frames = []
@@ -505,8 +505,12 @@ def generate_svt_av1_keyframes(
         # If WWXD doesn't select anything within max_scene_length, try finding good frames using diffs.
         else:
             selected_frame = None
-            diffs = np.array([frame.props["LumaDiff"] for frame in diff_clip[current_frame+min_still_scene_length:
-                                                                             current_frame+max_scene_length+1].frames()])
+            diffs = np.array(
+                [
+                    frame.props["LumaDiff"]
+                    for frame in diff_clip[current_frame + min_still_scene_length : current_frame + max_scene_length + 1].frames()
+                ]
+            )
             windows = sliding_window_view(diffs, 25)
             median = np.median(windows, axis=1).reshape((-1, 1))
             mad = np.median(np.abs(windows - median), axis=1).reshape((-1, 1))
