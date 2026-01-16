@@ -1,6 +1,6 @@
 import os
 import re
-from typing import cast
+from typing import cast, Any
 import inspect
 
 from muxtools import PathLike, ensure_path, error, warn
@@ -263,7 +263,7 @@ def settings_builder_5fish_svt_av1_psy(
     enable_restoration: int | None = None,
     progress: int | None = 2,
     **kwargs,
-):
+) -> dict[str, Any]:
     """
     This is a settings_builder for 5fish/SVT-AV1-PSY.
     These parameters correspond to `exp` branch of the encoder as of early January 2026.
@@ -294,17 +294,14 @@ def settings_builder_5fish_svt_av1_psy(
                             `15.00 ~ 25.00` is the recommended starting point; About `10.00` until `30.00 ~ 40.00` is the recommended range for 5fish/SVT-AV1-PSY.
                             SVT-AV1's hierarchical structure is very dynamic, and rate control parameters are very powerful. `--crf` merely marks a starting qindex for rate control. This recommended `--crf` range will differ greatly when different rate control parameters are used.
     """
-    args = {}
+    args = dict[str, Any]()
     args["_settings_builder_id"] = "SVT-AV1-PSY v2.3.0-"
 
     for k in inspect.getfullargspec(settings_builder_5fish_svt_av1_psy).args:
         if locals()[k] is not None:
             args[k] = locals()[k]
-    for k, v in kwargs.items():
-        if v is not None:
-            args[k] = v
 
-    return args
+    return args | kwargs
 
 
 def settings_builder_svt_av1_essential(
@@ -316,7 +313,7 @@ def settings_builder_svt_av1_essential(
     luminance_qp_bias: int | None = 20,
     progress: int | None = 3,
     **kwargs,
-):
+) -> dict[str, Any]:
     """
     This is a settings_builder for SVT-AV1-Essential.
     These parameters correspond to v3.1.2-Essential.
@@ -344,15 +341,14 @@ def settings_builder_svt_av1_essential(
     :param quality:         Adjust the quality.
                             `medium` (`--crf 30`) is the recommended starting point. `low` (`--crf 35`), or `lower` (`--crf 40`) is lower.
     """
-    args = {}
+    args = dict[str, Any]()
     args["_settings_builder_id"] = "SVT-AV1-Essential"
 
     for k in inspect.getfullargspec(settings_builder_svt_av1_essential).args:
         if locals()[k] is not None:
             args[k] = locals()[k]
-    for k, v in kwargs.items():
-        if v is not None:
-            args[k] = v
+
+    args = args | kwargs
 
     if "speed" in args and "preset" in args:
         del args["speed"]

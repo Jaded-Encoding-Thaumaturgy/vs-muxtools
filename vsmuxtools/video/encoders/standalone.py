@@ -240,7 +240,7 @@ class SVTAV1(VideoEncoder):
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
 
         tags = dict[str, str](ENCODER=cast(str, self._encoder_id))
-        args = [self.executable, "-i", "-", "-b", str(output)]
+        args = [self.executable, "-i", "-", "--output", str(output)]
 
         # user parameters
         args.extend(self.get_custom_args())
