@@ -181,13 +181,17 @@ class SVTAV1(VideoEncoder):
 
     Do not use this for high fidelity encoding.
 
-    You can use the available `settings_builder`s for a set of default parameters.
+    You can use the available `settings_builder`s for a set of default parameters.\n
     For better explanations of parameters, check the `Docs/Parameters.md` file in encoder's GitHub or GitLab.
 
+    Defaults to preset 2 if no preset or quality params given.\n
+    Defaults to crf 22 if no ratecontrol related params given.
+
     :param sd_clip:         Perform scene detection for the encoder.
-                            Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
-                            It is highly recommended for you to provide a clip or a file here for scene detection, as most SVT-AV1 forks don't have scene detection at all. The only exception is SVT-AV1-Essential which can perform its own scene detection.
-    :param photon_noise:    Add a basic layer of light photon noise on top, serving a similar role as regrain / dither.
+                            Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.\n
+                            It is highly recommended for you to provide a clip or a file here for scene detection, as most SVT-AV1 forks don't have scene detection at all.\n
+                            The only exception is SVT-AV1-Essential which can perform its own scene detection.
+    :param photon_noise:    Add a basic layer of light photon noise on top, serving a similar role as regrain / dither.\n
                             For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
     """
 
@@ -211,7 +215,7 @@ class SVTAV1(VideoEncoder):
                 warn(f"Unexpected encoder version: {self._encoder_id}.", self)
                 warn(f"Encoder version expected by the settings_builder: {self._settings_builder_id}.", self, 2)
 
-        if not self.sd_clip and not self._encoder_id.startswith("SVT-AV1-Essential"):
+        if not self.sd_clip and not self._encoder_id.startswith("SVT-AV1-Essential") and "_c" not in self.get_custom_args_dict():
             warn(
                 "Providing a clip or a file for scene detection is highly recommended, as most SVT-AV1 versions don't have proper scene detection.",
                 self,
@@ -239,20 +243,17 @@ class SVTAV1(VideoEncoder):
 
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
 
-        tags = dict[str, str](ENCODER=cast(str, self._encoder_id))
+        tags = dict[str, str](ENCODER=str(self._encoder_id))
         args = [self.executable, "-i", "-", "--output", str(output)]
 
-        # user parameters
-        args.extend(self.get_custom_args())
-
-        if "--preset" not in args and "--speed" not in args:
-            args.extend(["--preset", "2"])
-        if "--crf" not in args and "--quality" not in args and "--qp" not in args and "--rc" not in args:
-            args.extend(["--crf", "22"])
+        if not any(key in self.get_custom_args_dict() for key in {"preset", "speed"}):
+            self.update_custom_args(preset=2)
+        if not any(key in self.get_custom_args_dict() for key in {"crf", "quality", "qp", "rc"}):
+            self.update_custom_args(crf=22)
 
         # sd_clip
         if self.sd_clip:
-            if "--force-key-frames" in args:
+            if "force_key_frames" in self.get_custom_args_dict():
                 raise error("Scene detection from `sd_clip` can't be applied when `--force-key-frames` encoder parameter is already specified.", self)
 
             sd_clip = self.sd_clip if isinstance(self.sd_clip, vs.VideoNode) else self.sd_clip.src_cut
@@ -270,24 +271,21 @@ class SVTAV1(VideoEncoder):
             keyframes = np.load(cache)
             keyframes_str = "f,".join([str(i) for i in keyframes]) + "f"
 
-            if "-c" not in "args":
+            if "_c" not in self.get_custom_args_dict():
                 keyframes_file = get_workdir() / "svt_av1_keyframes.cfg"
                 with keyframes_file.open("w", encoding="utf-8") as keyframes_f:
                     keyframes_f.write(f"ForceKeyFrames : {keyframes_str}\n")
 
-                args.extend(["-c", str(keyframes_file)])
+                self.update_custom_args(_c=str(keyframes_file))
             else:
                 info("Attempting to use commandline parameter to specify keyframes since `-c` is already used...", self)
-                args.extend(["--force-key-frames", keyframes_str])
+                self.update_custom_args(force_key_frames=keyframes_str)
 
-            if "--keyint" in args:
-                args[args.index("--keyint") + 1] = "-1"
-            else:
-                args.extend(["--keyint", "-1"])
+            self.update_custom_args(keyint=-1)
 
         # photon_noise
         if self.photon_noise:
-            if "--fgs-table" not in args and "--film-grain" not in args:
+            if not any(key in self.get_custom_args_dict() for key in {"fgs_table", "film_grain"}):
                 fgs_table = get_workdir() / "svt_av1_fgs.tbl"
                 with fgs_table.open("w", encoding="utf-8") as fgs_table_f:
                     fgs_table_f.write("""filmgrn1
@@ -301,7 +299,10 @@ E 0 18446744073709551615 1 787 1
 	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
 """)
 
-                args.extend(["--fgs-table", str(fgs_table)])
+                self.update_custom_args(fgs_table=str(fgs_table))
+
+        # user parameters
+        args.extend(self.get_custom_args())
 
         # props
         # fmt:off
