@@ -46,6 +46,9 @@ build-backend = "hatchling.build"
 [project.urls]
 "Source Code" = "https://github.com/Vodes/vs-muxtools"
 
+[tool.uv.sources]
+muxtools = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/muxtools.git" }
+
 [tool.hatch.build]
 artifacts = ["vsmuxtools/_version.py"]
 

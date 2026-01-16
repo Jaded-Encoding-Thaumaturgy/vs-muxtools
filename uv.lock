@@ -18,14 +18,11 @@ wheels = [
 
 [[package]]
 name = "ass"
-version = "0.5.4"
+version = "1.0.3"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "setuptools" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f0/20/f40eb4e64989fdddae3330468e4555f64b7234338b4e02952f3e442f3790/ass-0.5.4.tar.gz", hash = "sha256:7b3db1929d975121a3e449f38ce7747bfaa88ea4aa1202cd84c14fa85d3ba5d0", size = 15223, upload-time = "2023-07-04T00:42:07.249Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/07/5c6a42e66414502df0aae1d8f752c4412f3845d953c45dbd705f7932de59/ass-1.0.3.tar.gz", hash = "sha256:1e48e181c8a6516d5a7a98de1e1be18ac6661526c3c37d92b6d16680650ef673", size = 12419, upload-time = "2025-10-22T21:11:04.82Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/62/2d/47532f60716fa4f76320358871f3edce28d6c2ce1ae1d1f31306270edf0e/ass-0.5.4-py3-none-any.whl", hash = "sha256:8da7d606bfed9f655a10611dc542936182b15438da5b9515205334990906e2c8", size = 14569, upload-time = "2023-07-04T00:42:03.282Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/3d/c51af75f531131d4f575cd8a8ffc8b101d21d80804626c25613f352ec85b/ass-1.0.3-py3-none-any.whl", hash = "sha256:8b46e481c5f866eec8be831d62697a0a580395e9ecc93239025cdd667cbe91b2", size = 15315, upload-time = "2025-10-22T21:11:03.996Z" },
 ]
 
 [[package]]
@@ -371,7 +368,7 @@ wheels = [
 
 [[package]]
 name = "fontcollector"
-version = "3.1.2"
+version = "4.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ass" },
@@ -381,9 +378,9 @@ dependencies = [
     { name = "freetype-py" },
     { name = "langcodes" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/43/62/3948bd12882a5e6c9bd625dcd5396a37788d096239eb065fce5429fe59f8/fontcollector-3.1.2.tar.gz", hash = "sha256:4c9a41b2923c2a65efe94415051a04a9fa52e641635e871745fdee54e838fd8c", size = 45427, upload-time = "2025-09-06T17:33:10.435Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/74/41153e81f9f3d088710faa792146e13b53c87adbe46da186d37b39bb789a/fontcollector-4.0.1.tar.gz", hash = "sha256:3440e1d25f7500be657dc4cadb9f46b7f159b8a587294ff37396d02d0cf00943", size = 50404, upload-time = "2026-01-10T16:25:11.074Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/11/1f/c484bb43656381882336a84ce943544433d7e45d3d79a1db542dc723cfcf/fontcollector-3.1.2-py3-none-any.whl", hash = "sha256:3f7097555fcb8a8eec3262aa846975af215f395b7d565b1893a6808d8c9db904", size = 57435, upload-time = "2025-09-06T17:33:08.91Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/b3/006833e40f54d1c75c55d6c5350b3f599dc1ddaabeb76a26fc016b5196b6/fontcollector-4.0.1-py3-none-any.whl", hash = "sha256:d6a7590e949a4a9ecd65947214d96c7379b35cfd06a9203b5f6df9f8ad8c5087", size = 66621, upload-time = "2026-01-10T16:25:09.777Z" },
 ]
 
 [[package]]
@@ -677,8 +674,8 @@ wheels = [
 
 [[package]]
 name = "muxtools"
-version = "0.4.1"
-source = { registry = "https://pypi.org/simple" }
+version = "0.4.2.dev5+ga7e3fb1"
+source = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/muxtools.git#a7e3fb1776430cd1df08303c295776a51a1b1614" }
 dependencies = [
     { name = "ass" },
     { name = "fontcollector" },
@@ -694,10 +691,6 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "videotimestamps" },
     { name = "wget" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/dc/79813d967022c44c3cdd728c392f74ada087b934a9dcb3a1adf40cf5f817/muxtools-0.4.1.tar.gz", hash = "sha256:bed6bdf6134e235a372ff1ff8b391f881c6240508ee7f318c774abb532393321", size = 212576, upload-time = "2025-12-14T20:48:19.118Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/1a/82ddea02a5738d6921236ab0fbff8b0904d653b16b5381832253c03a3f14/muxtools-0.4.1-py3-none-any.whl", hash = "sha256:0f7ed935e850dcd6c4b7db34a840cfc542053dad563ec8838bd4f268458f036a", size = 110326, upload-time = "2025-12-14T20:48:17.787Z" },
 ]
 
 [[package]]
@@ -1361,15 +1354,6 @@ wheels = [
 ]
 
 [[package]]
-name = "setuptools"
-version = "80.9.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/18/5d/3bf57dcd21979b887f014ea83c24ae194cfcd12b9e0fda66b957c69d1fca/setuptools-80.9.0.tar.gz", hash = "sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c", size = 1319958, upload-time = "2025-05-27T00:56:51.443Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl", hash = "sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922", size = 1201486, upload-time = "2025-05-27T00:56:49.664Z" },
-]
-
-[[package]]
 name = "sox"
 version = "1.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1587,7 +1571,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "muxtools", specifier = ">=0.4.1" },
+    { name = "muxtools", git = "https://github.com/Jaded-Encoding-Thaumaturgy/muxtools.git" },
     { name = "numpy", specifier = ">=1.24.3" },
     { name = "vapoursynth", specifier = ">=67" },
     { name = "vsjetpack", specifier = ">=0.7.0" },
