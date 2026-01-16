@@ -5,7 +5,6 @@ from pathlib import Path
 from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, get_workdir, error
 from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
-from typing import cast
 import numpy as np
 
 from .base import SupportsQP, VideoEncoder
