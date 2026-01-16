@@ -255,6 +255,15 @@ class SVTAV1(VideoEncoder):
             if "force_key_frames" in self.get_custom_args_dict():
                 raise error("Scene detection from `sd_clip` can't be applied when `--force-key-frames` encoder parameter is already specified.", self)
 
+            if "Essential" in self._encoder_id:
+                info(
+                    "Disabling built-in scene change detection of SVT-AV1-Essential in favor of muxtools implementation.\nDon't pass 'sd_clip' if this is undesirable.",
+                    self,
+                )
+                self.update_custom_args(scd=0)
+
+            self.update_custom_args(keyint=0)
+
             sd_clip = self.sd_clip if isinstance(self.sd_clip, vs.VideoNode) else self.sd_clip.src_cut
 
             cache = get_workdir() / "svt_av1_scene_detection_cache.npy"
@@ -279,8 +288,6 @@ class SVTAV1(VideoEncoder):
             else:
                 info("Attempting to use commandline parameter to specify keyframes since `-c` is already used...", self)
                 self.update_custom_args(force_key_frames=keyframes_str)
-
-            self.update_custom_args(keyint=-1)
 
         # photon_noise
         if self.photon_noise:
