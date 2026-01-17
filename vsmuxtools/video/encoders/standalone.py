@@ -256,14 +256,13 @@ class SVTAV1(VideoEncoder):
             if "force_key_frames" in self.get_custom_args_dict():
                 raise error("Scene detection from `sd_clip` can't be applied when `--force-key-frames` encoder parameter is already specified.", self)
 
-            if "Essential" in self._encoder_id:
+            if "Essential" in str(self._encoder_id):
                 info(
                     "Disabling built-in scene change detection of SVT-AV1-Essential in favor of muxtools implementation.\nDon't pass 'sd_clip' if this is undesirable.",
                     self,
                 )
 
-            self.update_custom_args(scd=0)
-            self.update_custom_args(keyint=0)
+            self.update_custom_args(keyint=0, scd=0)
 
             sd_clip = self.sd_clip if isinstance(self.sd_clip, vs.VideoNode) else self.sd_clip.src_cut
 
