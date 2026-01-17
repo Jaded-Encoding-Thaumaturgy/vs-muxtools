@@ -244,7 +244,7 @@ class SVTAV1(VideoEncoder):
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
 
         tags = dict[str, str](ENCODER=str(self._encoder_id))
-        args = [self.executable, "-i", "-", "--output", str(output)]
+        args = [self.executable, "--input", "-", "--output", str(output)]
 
         if not any(key in self.get_custom_args_dict() for key in {"preset", "speed"}):
             self.update_custom_args(preset=2)
