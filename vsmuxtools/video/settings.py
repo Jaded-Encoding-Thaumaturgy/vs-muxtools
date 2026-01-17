@@ -295,7 +295,7 @@ def settings_builder_5fish_svt_av1_psy(
                             SVT-AV1's hierarchical structure is very dynamic, and rate control parameters are very powerful. `--crf` merely marks a starting qindex for rate control. This recommended `--crf` range will differ greatly when different rate control parameters are used.
     """
     args = dict[str, Any]()
-    args["_settings_builder_id"] = "SVT-AV1-PSY v2.3.0-"
+    args["_settings_builder_id"] = r"(?:5fish\/|)SVT-AV1-PSY v2\.3\.0"
 
     for k in inspect.getfullargspec(settings_builder_5fish_svt_av1_psy).args:
         if locals()[k] is not None:

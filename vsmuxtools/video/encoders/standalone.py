@@ -6,6 +6,7 @@ from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get
 from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
 import numpy as np
+import re
 
 from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
@@ -204,13 +205,13 @@ class SVTAV1(VideoEncoder):
         if self.get_process_affinity() is False:
             self.affinity = []
 
-        self._encoder_id = get_binary_version(self.executable, r"(\S+ v\S+) \((?:release|debug)\)", ["--version"])
+        self._encoder_id = get_binary_version(self.executable, r"(.+) \((?:release|debug)\)", ["--version"])
 
         if not self._encoder_id:
             raise error("Couldn't parse SvtAv1EncApp version!", self)
 
         if self._settings_builder_id is not None:
-            if not self._encoder_id.startswith(self._settings_builder_id):
+            if not re.match(self._settings_builder_id, self._encoder_id):
                 warn(f"Unexpected encoder version: {self._encoder_id}.", self)
                 warn(f"Encoder version expected by the settings_builder: {self._settings_builder_id}.", self, 2)
 
@@ -260,8 +261,8 @@ class SVTAV1(VideoEncoder):
                     "Disabling built-in scene change detection of SVT-AV1-Essential in favor of muxtools implementation.\nDon't pass 'sd_clip' if this is undesirable.",
                     self,
                 )
-                self.update_custom_args(scd=0)
 
+            self.update_custom_args(scd=0)
             self.update_custom_args(keyint=0)
 
             sd_clip = self.sd_clip if isinstance(self.sd_clip, vs.VideoNode) else self.sd_clip.src_cut
