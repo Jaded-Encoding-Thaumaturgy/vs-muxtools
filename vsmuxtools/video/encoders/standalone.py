@@ -5,12 +5,14 @@ from pathlib import Path
 from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, get_workdir, error
 from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
+import numpy as np
+import re
 
 from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
 from ..settings import shift_zones, zones_to_args, norm_zones
 
-from vsmuxtools.utils.source import generate_keyframes, src_file
+from vsmuxtools.utils.source import generate_svt_av1_keyframes, src_file
 
 __all__ = ["x264", "x265", "LosslessX264", "SVTAV1"]
 
@@ -175,49 +177,59 @@ class LosslessX264(VideoEncoder):
 @dataclass(config=allow_extra)
 class SVTAV1(VideoEncoder):
     """
-    Uses SVtAv1EncApp to encode clip to a av1 stream.\n
-    Do not use this for high fidelity encoding.\n
-    For better explanations of params, check the `--help` of the encoder or the gitlab wiki page.
+    Uses SvtAv1EncApp to encode clip to an AV1 stream.
 
-    :param preset:          Encoder preset. Lower = slower & better
-                            The range is -1 to 13 for the regular SVTAV1 and -3 to 13 for SVTAV1-PSY
-    :param crf:             Constant rate factor, lower = better
-    :param tune:            The tuning metric. None = 2 for SVTAV1 and 3 for SVTAV1-PSY
+    Do not use this for high fidelity encoding.
 
-    :param qp_clip:         Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
-                            It is highly recommended to do this so you can force keyframes.
+    You can use the available `settings_builder`s for a set of default parameters.\n
+    For better explanations of parameters, check the `Docs/Parameters.md` file in encoder's GitHub or GitLab.
+
+    Defaults to preset 2 if no preset or quality params given.\n
+    Defaults to crf 22 if no ratecontrol related params given.
+
+    :param sd_clip:         Perform scene detection for the encoder.
+                            Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.\n
+                            It is highly recommended for you to provide a clip or a file here for scene detection, as most SVT-AV1 forks don't have scene detection at all.\n
+                            The only exception is SVT-AV1-Essential which can perform its own scene detection.
+    :param photon_noise:    Add a basic layer of light photon noise on top, serving a similar role as regrain / dither.\n
+                            For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
     """
 
-    preset: int = 4
-    crf: int | float = 15
-    tune: int | None = None
-    qp_clip: vs.VideoNode | src_file | None = None
+    sd_clip: vs.VideoNode | src_file | None = None
+    photon_noise: bool = True
+    _encoder_id: str | None = None
+    _settings_builder_id: str | None = None
 
     def __post_init__(self):
         self.executable = get_executable("SvtAv1EncApp")
         if self.get_process_affinity() is False:
             self.affinity = []
-        if not self.qp_clip:
-            warn("It is highly recommended to force keyframes with this encoder!\nPlease pass a qp_clip param.", self, 2)
 
-    def _make_keyframes_config(self, clip: vs.VideoNode) -> Path | bool:
-        out = get_workdir() / "svt_keyframes.cfg"
-        if out.exists():
-            info("Reusing existing keyframes config.", self)
-            return out
-        info("Generating keyframes config file...", self)
+        self._encoder_id = get_binary_version(self.executable, r"(.+) \((?:release|debug)\)", ["--version"])
 
-        keyframes = generate_keyframes(clip)
-        if not keyframes:
-            return False
-        keyframes_str = f"ForceKeyFrames : {'f,'.join([str(i) for i in keyframes])}f"
-        with open(out, "w", encoding="utf-8") as f:
-            f.write(keyframes_str)
+        if not self._encoder_id:
+            raise error("Couldn't parse SvtAv1EncApp version!", self)
 
-        info("Done", self)
-        return out
+        if self._settings_builder_id is not None:
+            if not re.match(self._settings_builder_id, self._encoder_id):
+                warn(f"Unexpected encoder version: {self._encoder_id}.", self)
+                warn(f"Encoder version expected by the settings_builder: {self._settings_builder_id}.", self, 2)
+
+        if not self.sd_clip and not self._encoder_id.startswith("SVT-AV1-Essential") and "_c" not in self.get_custom_args_dict():
+            warn(
+                "Providing a clip or a file for scene detection is highly recommended, as most SVT-AV1 versions don't have proper scene detection.",
+                self,
+                2,
+            )
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
+        if clip.format.bits_per_sample > 10:
+            warn("SVT-AV1 doesn't support a bit depth over 10.\nClip will be dithered to 10 bit.", self, 2)
+            clip = finalize_clip(clip, 10)
+        elif clip.format.bits_per_sample < 10:
+            warn("SVT-AV1 works best at 10 bit.\nClip will be converted to 10 bit", self, 2)
+            clip = finalize_clip(clip, 10)
+
         from vsmuxtools.video.clip_metadata import props_dict, SVT_AV1_RANGES
 
         clip_props = props_dict(clip, False, SVT_AV1_RANGES)
@@ -230,29 +242,77 @@ class SVTAV1(VideoEncoder):
                 raise error("AV1 only supports LEFT and TOPLEFT chroma locations!", self)
 
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
-        encoder = get_binary_version(self.executable, r"(SVT-AV1.+?(?:v\d+.\d+.\d[^ ]+|[0-9a-f]{8,40}))", ["--version"])
-        assert encoder
 
-        tags = dict[str, str](ENCODER=encoder)
-        args = [self.executable, "-i", "-", "--output", str(output), "--preset", str(self.preset)]
-        if self.qp_clip:
-            qp_clip = self.qp_clip if isinstance(self.qp_clip, vs.VideoNode) else self.qp_clip.src_cut
-            keyframes_config = self._make_keyframes_config(qp_clip)
-            if keyframes_config:
-                args.extend(["--keyint", "-1", "-c", str(keyframes_config)])
+        tags = dict[str, str](ENCODER=str(self._encoder_id))
+        args = [self.executable, "--input", "-", "--output", str(output)]
+
+        if not any(key in self.get_custom_args_dict() for key in {"preset", "speed"}):
+            self.update_custom_args(preset=2)
+        if not any(key in self.get_custom_args_dict() for key in {"crf", "quality", "qp", "rc"}):
+            self.update_custom_args(crf=22)
+
+        # sd_clip
+        if self.sd_clip:
+            if "force_key_frames" in self.get_custom_args_dict():
+                raise error("Scene detection from `sd_clip` can't be applied when `--force-key-frames` encoder parameter is already specified.", self)
+
+            if "Essential" in str(self._encoder_id):
+                info(
+                    "Disabling built-in scene change detection of SVT-AV1-Essential in favor of muxtools implementation.\nDon't pass 'sd_clip' if this is undesirable.",
+                    self,
+                )
+
+            self.update_custom_args(keyint=0, scd=0)
+
+            sd_clip = self.sd_clip if isinstance(self.sd_clip, vs.VideoNode) else self.sd_clip.src_cut
+
+            cache = get_workdir() / "svt_av1_scene_detection_cache.npy"
+
+            if not cache.exists():
+                info("Performing scene detection...", self)
+                keyframes = generate_svt_av1_keyframes(sd_clip)
+                np.save(cache, keyframes)
+                info("Scene detection complete.", self)
             else:
-                warn("No keyframes found.", self)
+                info("Reusing existing scene detection.", self)
 
-        if self.crf:
-            args.extend(["--crf", str(self.crf)])
+            keyframes = np.load(cache)
+            keyframes_str = "f,".join([str(i) for i in keyframes]) + "f"
 
-        if self.tune is None:
-            self.tune = 3 if "psy" in encoder.lower() else 2
+            if "_c" not in self.get_custom_args_dict():
+                keyframes_file = get_workdir() / "svt_av1_keyframes.cfg"
+                with keyframes_file.open("w", encoding="utf-8") as keyframes_f:
+                    keyframes_f.write(f"ForceKeyFrames : {keyframes_str}\n")
 
-        args.extend(["--tune", str(self.tune)])
+                self.update_custom_args(_c=str(keyframes_file))
+            else:
+                info("Attempting to use commandline parameter to specify keyframes since `-c` is already used...", self)
+                self.update_custom_args(force_key_frames=keyframes_str)
 
+        # photon_noise
+        if self.photon_noise:
+            if not any(key in self.get_custom_args_dict() for key in {"fgs_table", "film_grain"}):
+                fgs_table = get_workdir() / "svt_av1_fgs.tbl"
+                with fgs_table.open("w", encoding="utf-8") as fgs_table_f:
+                    fgs_table_f.write("""filmgrn1
+E 0 18446744073709551615 1 787 1
+	p 3 7 0 8 0 1 128 192 256 128 192 256
+	sY 14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5
+	sCb 0
+	sCr 0
+	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
+	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
+	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
+""")
+
+                self.update_custom_args(fgs_table=str(fgs_table))
+
+        # user parameters
+        args.extend(self.get_custom_args())
+
+        # props
         # fmt:off
-        args.extend(self.get_custom_args() + [
+        args.extend([
             "--fps-num", clip_props.get("fps_num"),
             "--fps-denom", clip_props.get("fps_den"),
             "--input-depth", clip_props.get("depth"),
@@ -268,5 +328,6 @@ class SVTAV1(VideoEncoder):
         self.update_process_affinity(process.pid)
         clip.output(process.stdin, y4m=True)
         process.communicate()
+
         tags.update(ENCODER_SETTINGS=self.get_mediainfo_settings(args))
         return VideoFile(output, tags=tags)
