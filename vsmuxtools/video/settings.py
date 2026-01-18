@@ -1,6 +1,7 @@
 import os
 import re
-from typing import cast
+from typing import cast, Any
+import inspect
 
 from muxtools import PathLike, ensure_path, error, warn
 from jetpytools import CustomValueError
@@ -8,7 +9,15 @@ from vstools import vs
 
 from .encoders.types import Zone
 
-__all__ = ["settings_builder_x265", "settings_builder_x264", "sb", "sb265", "sb264"]
+__all__ = [
+    "settings_builder_x265",
+    "settings_builder_x264",
+    "sb",
+    "sb265",
+    "sb264",
+    "settings_builder_5fish_svt_av1_psy",
+    "settings_builder_svt_av1_essential",
+]
 
 
 def is_full_zone(zone: Zone) -> bool:
@@ -207,6 +216,151 @@ def settings_builder_x264(
 
     settings += (" " + append.strip()) if append.strip() else ""
     return settings
+
+
+def settings_builder_5fish_svt_av1_psy(
+    preset: int = 2,
+    crf: float = 20.00,
+    # global
+    tune: int | None = 0,
+    scm: int | None = 0,
+    noise_level_thr: int | None = 16000,
+    chroma_qmc_bias: int | None = 2,
+    texture_preserving_qmc_bias: int | None = None,
+    # me
+    enable_tf: int | None = None,
+    kf_tf_strength: int | None = None,
+    tf_strength: int | None = None,
+    # rc
+    balancing_q_bias: int | None = 1,
+    balancing_luminance_q_bias: float | None = 5.0,
+    qp_scale_compress_strength: float | None = None,
+    frame_luma_bias: int | None = None,
+    noise_level_q_bias: int | None = None,
+    enable_variance_boost: int | None = None,
+    variance_boost_strength: int | None = 1,
+    variance_octile: int | None = 7,
+    enable_alt_curve: int | None = None,
+    low_q_taper: int | None = None,
+    # md & enc_dec
+    qm_min: int | None = 8,
+    chroma_qm_min: int | None = 10,
+    qm_max: int | None = None,
+    chroma_qm_max: int | None = None,
+    noise_norm_strength: int | None = None,
+    ac_bias: float | None = 1.0,
+    tx_bias: int | None = None,
+    variance_md_bias: int | None = 1,
+    variance_md_bias_thr: float | None = None,
+    max_32_tx_size: int | None = None,
+    complex_hvs: int | None = -1,
+    # dlf & cdef & rest
+    enable_dlf: int | None = None,
+    dlf_bias: int | None = 1,
+    filtering_noise_detection: int | None = None,
+    enable_cdef: int | None = None,
+    cdef_bias: int | None = 1,
+    enable_restoration: int | None = None,
+    progress: int | None = 2,
+    **kwargs,
+) -> dict[str, Any]:
+    """
+    This is a settings_builder for 5fish/SVT-AV1-PSY.
+    These parameters correspond to `exp` branch of the encoder as of early January 2026.
+    Repository: https://github.com/5fish/svt-av1-psy
+    Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases
+    Linux build: `Build/linux/build.sh --native --static --release --enable-lto --enable-pgo`; clang recommended over gcc.
+
+    5fish/SVT-AV1-PSY is better for relatively higher quality AV1 encodes.
+    For encodes targeting tiny filesize, check out `settings_builder_svt_av1_essential`.
+    AV1 encoders in general have a lower quality ceiling. For high fidelity encodes, you should use x265 instead.
+
+    This provides a set of default parameters suitable for encoding clean sources.
+    For clean sources, you should remove all dynamic noise while keeping texture intact, and never regrain before sending to SVT-AV1.
+    For sources with heavy dynamic grain, you can consider using x265 or x264 instead. However, if you still want a mini, you would need to adjust some parameters here.
+
+    For better explanations of parameters, check the `Docs/Parameters.md` file in encoder's GitHub.
+    For how to set the parameters for your source, check the guides section in the AV1 weeb server, specifically “High effort high quality AV1 encode note collection”.
+
+    To use this settings_builder,
+    ```py
+    settings = settings_builder_5fish_svt_av1_psy(...)
+    mini = SVTAV1(**settings, sd_clip=src).encode(final)
+    ```
+
+    :param preset:          Adjust the speed.
+                            `2` is the recommended starting point; `0` or `-1` is the slower options; `4` is the faster option.
+    :param crf:             Adjust the quality.
+                            `15.00 ~ 25.00` is the recommended starting point; About `10.00` until `30.00 ~ 40.00` is the recommended range for 5fish/SVT-AV1-PSY.
+                            SVT-AV1's hierarchical structure is very dynamic, and rate control parameters are very powerful. `--crf` merely marks a starting qindex for rate control. This recommended `--crf` range will differ greatly when different rate control parameters are used.
+    """
+    args = dict[str, Any]()
+    args["_settings_builder_id"] = r"(?:5fish\/|)SVT-AV1-PSY v2\.3\.0"
+
+    for k in inspect.getfullargspec(settings_builder_5fish_svt_av1_psy).args:
+        if locals()[k] is not None:
+            args[k] = locals()[k]
+
+    return args | kwargs
+
+
+def settings_builder_svt_av1_essential(
+    speed: str | None = "slower",
+    quality: str | None = "medium",
+    preset: int | None = None,
+    crf: int | None = None,
+    scm: int | None = 0,
+    luminance_qp_bias: int | None = 20,
+    progress: int | None = 3,
+    **kwargs,
+) -> dict[str, Any]:
+    """
+    This is a settings_builder for SVT-AV1-Essential.
+    These parameters correspond to v3.1.2-Essential.
+    Repository: https://github.com/nekotrix/SVT-AV1-Essential
+    Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases
+    Linux build: `Build/linux/build.sh --native --static --release --enable-lto --enable-pgo`; note the available patches; clang recommended over gcc.
+
+    SVT-AV1-Essential is better for mini encodes targeting tiny filesize with `--quality` worse than or equal to `medium`.
+    For higer quality AV1 encodes, check out `settings_builder_5fish_svt_av1_psy`.
+    AV1 encoders in general have a lower quality ceiling. For high fidelity encodes, you should use x265 instead.
+
+    This provides a set of default parameters suitable for encoding clean sources.
+    You should not regrain before sending to SVT-AV1.
+
+    For better explanations of parameters, check the `Docs/Parameters.md` file in encoder's GitHub.
+
+    To use this settings_builder,
+    ```py
+    settings = settings_builder_svt_av1_essential(...)
+    mini = SVTAV1(**settings).encode(final)
+    ```
+
+    :param speed:           Adjust the speed.
+                            `slower` (`--preset 2`) is the recommended starting point. `slow` (`--preset 4`) is faster.
+    :param quality:         Adjust the quality.
+                            `medium` (`--crf 30`) is the recommended starting point. `low` (`--crf 35`), or `lower` (`--crf 40`) is lower.
+    """
+    args = dict[str, Any]()
+    args["_settings_builder_id"] = "SVT-AV1-Essential"
+
+    for k in inspect.getfullargspec(settings_builder_svt_av1_essential).args:
+        if locals()[k] is not None:
+            args[k] = locals()[k]
+
+    args = args | kwargs
+
+    if "speed" in args and "preset" in args:
+        del args["speed"]
+    if "quality" in args and "crf" in args:
+        del args["quality"]
+
+    if "speed" not in args and "preset" not in args:
+        raise error("You must specify either speed or preset", settings_builder_svt_av1_essential)
+    if "quality" not in args and "crf" not in args:
+        raise error("You must specify either quality or crf", settings_builder_svt_av1_essential)
+
+    return args
 
 
 sb = settings_builder_x265
