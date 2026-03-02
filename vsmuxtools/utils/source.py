@@ -437,7 +437,7 @@ def generate_svt_av1_keyframes(
     min_scene_length: int = 129,
     min_still_scene_length: int = 193,
     max_scene_length: int = 257,
-) -> np.ndarray[tuple[Any, ...], np.dtype[np.uint32]]:
+) -> list[int]:
     """
     Run `generate_keyframes`, and then filter the WWXD keyframe result for SVT-AV1 derived encoders.
 
@@ -523,7 +523,7 @@ def generate_svt_av1_keyframes(
                 for structure in [32, 16, 8]:
                     for frame in motion_frames[::-1]:
                         if (frame - current_frame) % structure == 1:
-                            selected_frame = frame
+                            selected_frame = int(frame)
                             break
                     if selected_frame is not None:
                         break
@@ -537,4 +537,4 @@ def generate_svt_av1_keyframes(
 
     svt_av1_frames.pop()
 
-    return np.asarray(svt_av1_frames, dtype=np.uint32)
+    return svt_av1_frames

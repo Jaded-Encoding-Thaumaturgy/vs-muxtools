@@ -5,8 +5,8 @@ from pathlib import Path
 from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, get_workdir, error
 from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
-import numpy as np
 import re
+import json
 
 from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
@@ -191,6 +191,7 @@ class SVTAV1(VideoEncoder):
     :param light_photon_noise: Add a layer of light photon noise on top, serving a similar role as a light regrain / dither.
                                For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
                                On supported forks, you may also use `--photon-noise` parameter to apply a basic photon noise with configurable strength but not coarseness.
+                               Automatically disabled when either `--film-grain`, `--fgs-table`, or `--photon-noise` are used.
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
@@ -263,20 +264,35 @@ class SVTAV1(VideoEncoder):
             self.update_custom_args(keyint=0, scd=0)
 
             sd_clip = self.sd_clip if isinstance(self.sd_clip, vs.VideoNode) else self.sd_clip.src_cut
+            if sd_clip.num_frames != clip.num_frames:
+                raise error("Scene detection clip `sd_clip` has different length than the `clip` being encoded", self)
 
-            cache = get_workdir() / "svt_av1_scene_detection_cache.npy"
+            cache = get_workdir() / "svt_av1_scene_detection_cache.json"
 
-            if not cache.exists():
+            try:
+                with cache.open("r") as cache_f:
+                    cache_config = json.load(cache_f)
+
+                assert cache_config["frames"] == sd_clip.num_frames
+                assert isinstance(cache_config["scenecuts"], list)
+                assert all(isinstance(f, int) for f in cache_config["scenecuts"])
+
+                info("Reusing existing scene detection.", self)
+                keyframes = cache_config["scenecuts"]
+            except Exception:
                 info("Performing scene detection...", self)
                 keyframes = generate_svt_av1_keyframes(sd_clip)
-                np.save(cache, keyframes)
+
+                cache_config = {
+                    "frames": sd_clip.num_frames,
+                    "scenecuts": keyframes,
+                }
+                with cache.open("w") as cache_f:
+                    json.dump(cache_config, cache_f)
+
                 info("Scene detection complete.", self)
-            else:
-                info("Reusing existing scene detection.", self)
 
-            keyframes = np.load(cache)
             keyframes_str = "f,".join([str(i) for i in keyframes]) + "f"
-
             if "_c" not in self.get_custom_args_dict():
                 keyframes_file = get_workdir() / "svt_av1_keyframes.cfg"
                 with keyframes_file.open("w", encoding="utf-8") as keyframes_f:
