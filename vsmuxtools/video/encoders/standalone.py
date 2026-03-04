@@ -179,24 +179,22 @@ class SVTAV1(VideoEncoder):
     """
     Uses SvtAv1EncApp to encode clip to an AV1 stream.
 
-    Do not use this for high fidelity encoding.
-
-    You can use the available `settings_builder`s for a set of default parameters.\n
+    You can use the available `settings_builder`s for a set of default parameters.
     For better explanations of parameters, check the `Docs/Parameters.md` file in encoder's GitHub or GitLab.
 
-    Defaults to preset 2 if no preset or quality params given.\n
-    Defaults to crf 22 if no ratecontrol related params given.
+    Defaults to `--preset 2` if no `--preset` or `--speed` given.
+    Defaults to `--crf 22` if no `--crf` or `--quality` given.
 
-    :param sd_clip:         Perform scene detection for the encoder.
-                            Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.\n
-                            It is highly recommended for you to provide a clip or a file here for scene detection, as most SVT-AV1 forks don't have scene detection at all.\n
-                            The only exception is SVT-AV1-Essential which can perform its own scene detection.
-    :param photon_noise:    Add a basic layer of light photon noise on top, serving a similar role as regrain / dither.\n
-                            For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
+    :param sd_clip:            Perform scene detection for the encoder.
+                               Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
+                               It is recommended to use this scene detection for 5fish/SVT-AV1-PSY with the `--balancing-q-bias` system, while for SVT-AV1-Essential, you can rely on its own internal scene detection.
+    :param light_photon_noise: Add a layer of light photon noise on top, serving a similar role as a light regrain / dither.
+                               For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
+                               On supported forks, you may also use `--photon-noise` parameter to apply a basic photon noise with configurable strength but not coarseness.
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
-    photon_noise: bool = True
+    light_photon_noise: bool = True
     _encoder_id: str | None = None
     _settings_builder_id: str | None = None
 
@@ -217,7 +215,7 @@ class SVTAV1(VideoEncoder):
 
         if not self.sd_clip and not self._encoder_id.startswith("SVT-AV1-Essential") and "_c" not in self.get_custom_args_dict():
             warn(
-                "Providing a clip or a file for scene detection is highly recommended, as most SVT-AV1 versions don't have proper scene detection.",
+                "Providing a clip or a file for scene detection is recommended for SVT-AV1.",
                 self,
                 2,
             )
@@ -289,12 +287,24 @@ class SVTAV1(VideoEncoder):
                 info("Attempting to use commandline parameter to specify keyframes since `-c` is already used...", self)
                 self.update_custom_args(force_key_frames=keyframes_str)
 
-        # photon_noise
-        if self.photon_noise:
-            if not any(key in self.get_custom_args_dict() for key in {"fgs_table", "film_grain"}):
+        # light_photon_noise
+        if self.light_photon_noise:
+            if not any(key in self.get_custom_args_dict() for key in {"fgs_table", "film_grain", "photon_noise"}):
                 fgs_table = get_workdir() / "svt_av1_fgs.tbl"
                 with fgs_table.open("w", encoding="utf-8") as fgs_table_f:
-                    fgs_table_f.write("""filmgrn1
+                    if clip_props.get("range") == SVT_AV1_RANGES[1]:
+                        fgs_table_f.write("""filmgrn1
+E 0 18446744073709551615 1 787 1
+	p 3 7 0 8 0 1 128 192 256 128 192 256
+    sY 10 0 0 16 0 17 2 18 3 157 3 177 4 233 4 234 2 235 0 255 0
+	sCb 0
+	sCr 0
+	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
+	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
+	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
+""")
+                    else:
+                        fgs_table_f.write("""filmgrn1
 E 0 18446744073709551615 1 787 1
 	p 3 7 0 8 0 1 128 192 256 128 192 256
 	sY 14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5

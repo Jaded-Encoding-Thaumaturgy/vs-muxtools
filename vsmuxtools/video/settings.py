@@ -221,81 +221,55 @@ def settings_builder_x264(
 def settings_builder_5fish_svt_av1_psy(
     preset: int = 2,
     crf: float = 20.00,
-    # global
-    tune: int | None = 0,
-    scm: int | None = 0,
-    noise_level_thr: int | None = 16000,
-    chroma_qmc_bias: int | None = 2,
-    texture_preserving_qmc_bias: int | None = None,
-    # me
-    enable_tf: int | None = None,
-    kf_tf_strength: int | None = None,
-    tf_strength: int | None = None,
-    # rc
-    balancing_q_bias: int | None = 1,
-    balancing_luminance_q_bias: float | None = 5.0,
-    qp_scale_compress_strength: float | None = None,
-    frame_luma_bias: int | None = None,
-    noise_level_q_bias: int | None = None,
-    enable_variance_boost: int | None = None,
-    variance_boost_strength: int | None = 1,
-    variance_octile: int | None = 7,
-    enable_alt_curve: int | None = None,
-    low_q_taper: int | None = None,
-    # md & enc_dec
-    qm_min: int | None = 8,
-    chroma_qm_min: int | None = 10,
-    qm_max: int | None = None,
-    chroma_qm_max: int | None = None,
-    noise_norm_strength: int | None = None,
-    ac_bias: float | None = 1.0,
-    tx_bias: int | None = None,
-    variance_md_bias: int | None = 1,
-    variance_md_bias_thr: float | None = None,
-    max_32_tx_size: int | None = None,
-    complex_hvs: int | None = -1,
-    # dlf & cdef & rest
-    enable_dlf: int | None = None,
-    dlf_bias: int | None = 1,
-    filtering_noise_detection: int | None = None,
-    enable_cdef: int | None = None,
-    cdef_bias: int | None = 1,
-    enable_restoration: int | None = None,
+    lineart_psy_bias: int = 3,
+    texture_psy_bias: int = 3,
     progress: int | None = 2,
     **kwargs,
 ) -> dict[str, Any]:
     """
     This is a settings_builder for 5fish/SVT-AV1-PSY.
-    These parameters correspond to `exp` branch of the encoder as of early January 2026.
-    Repository: https://github.com/5fish/svt-av1-psy
-    Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases
-    Linux build: `Build/linux/build.sh --native --static --release --enable-lto --enable-pgo`; clang recommended over gcc.
+    These parameters correspond to `exp` branch of the encoder as of early March 2026.
 
-    5fish/SVT-AV1-PSY is better for relatively higher quality AV1 encodes.
-    For encodes targeting tiny filesize, check out `settings_builder_svt_av1_essential`.
-    AV1 encoders in general have a lower quality ceiling. For high fidelity encodes, you should use x265 instead.
+    Repository: https://github.com/5fish/svt-av1-psy .
+    Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases .
+    Linux build: `Build/linux/build.sh --native --static --release --enable-lto --enable-pgo` with clang highly recommended over gcc.
 
-    This provides a set of default parameters suitable for encoding clean sources.
-    For clean sources, you should remove all dynamic noise while keeping texture intact, and never regrain before sending to SVT-AV1.
-    For sources with heavy dynamic grain, you can consider using x265 or x264 instead. However, if you still want a mini, you would need to adjust some parameters here.
+    For high fidelity encodes, start at `--preset 0 --crf 12.00`.
+    You should regrain and do every other filtering just as you would for a high fidelity x265 encode. This will work fine.
+    But in addition to that, you can offload high frequency part of the regraining noise onto AV1's film grain layer by writing a photon noise table for even better efficiency.
 
-    For better explanations of parameters, check the `Docs/Parameters.md` file in encoder's GitHub.
-    For how to set the parameters for your source, check the guides section in the AV1 weeb server, specifically “High effort high quality AV1 encode note collection”.
+    For middle quality (for example, ~ 6 Mbps) encodes, start at `--preset 2 --crf 20.00`.
+    For most cases, you should be able to rely on writing a good photon noise table instead of regraining to achieve best detail retention for the given filesize. The builtin photon noise table of `SVTAV1` can deal with some basic situations as well. Otherwise you can do all other filtering as normal and make sure they are as protective as they can.
+
+    For mini encodes, start at `--preset 2 --crf 28.00`.
+    You want to remove temporal noise as much as you can while keeping static texture intact. Do not regrain for mini encode. Other than this, you want to still make every process including denoise and deband protective.
+
+    If it's a source with very heavy artistic temporal noise and you would not or could not remove the temporal noise, but you still want to get it to a very small filesize (< 3 Mbps), you should use SVT-AV1-Essential instead, as SVT-AV1-Essential throws away information more aggressively and can achieve a good looking result in noisy source even at very small filesize.
+
+    For both middle quality and mini encodes, `--preset 2` is preferred over slower `--preset 0`. Specifically this is because, internally, different `--preset` uses different methods to search for the best encoding option for each block. Without a high fidelity specific parameter (`--satd-bias`) that's internally enabled at `--crf [<= 16.00]`, it is better to use the `--preset 2`'s search strategy rather than `--preset 0`'s search strategy.
+
+    After setting up `--preset` and `--crf`, you should set a good `--lineart-psy-bias` and `--texture-psy-bias` value depending on how much effort you want to spend on them.
+
+    `--lineart-psy-bias 3` is generally good for all sources, especially sources without weak lineart and easier to handle.
+    `--lineart-psy-bias 4` puts a little bit more focus on weak lineart retention than `--lineart-psy-bias 3`.
+    `--lineart-psy-bias 5` and above is optimised for weak lineart retention. Some features here trade overall efficiency for better weak lineart retention, and some features here are tuned very aggressively and may cause issues in texture heavy sources.
+
+    `--texture-psy-bias 2` is fine to use on sources with little texture.
+    `--texture-psy-bias 3` puts a little bit of focus on texture, and can be used on sources with occasional texture.
+    `--texture-psy-bias 4` is suitable for sources with detailed texture. At this level, it starts to harm especially weak lineart in clean sources a little bit, but should still generally be fine for most sources.
+    `--texture-psy-bias 5` and above is suitabled for encodes where texture retention is a great priority, or when the source is very texture heavy or covered by a layer of static noise.
+
+    For better explanations of parameters, and to adjust the encoder beyond the two main `-psy-bias`s, check the `Docs/Parameters.md` file in encoder's GitHub.
+    For how to set the parameters for your source, as well as how to generate your own photon noise table, check the guides section in the AV1 weeb server, specifically “High effort high quality AV1 encode note collection”.
 
     To use this settings_builder,
     ```py
     settings = settings_builder_5fish_svt_av1_psy(...)
     mini = SVTAV1(**settings, sd_clip=src).encode(final)
     ```
-
-    :param preset:          Adjust the speed.
-                            `2` is the recommended starting point; `0` or `-1` is the slower options; `4` is the faster option.
-    :param crf:             Adjust the quality.
-                            `15.00 ~ 25.00` is the recommended starting point; About `10.00` until `30.00 ~ 40.00` is the recommended range for 5fish/SVT-AV1-PSY.
-                            SVT-AV1's hierarchical structure is very dynamic, and rate control parameters are very powerful. `--crf` merely marks a starting qindex for rate control. This recommended `--crf` range will differ greatly when different rate control parameters are used.
     """
     args = dict[str, Any]()
-    args["_settings_builder_id"] = r"(?:5fish\/|)SVT-AV1-PSY v2\.3\.0"
+    args["_settings_builder_id"] = r"SVT-AV1-PSY \[5fish"
 
     for k in inspect.getfullargspec(settings_builder_5fish_svt_av1_psy).args:
         if locals()[k] is not None:
@@ -309,24 +283,23 @@ def settings_builder_svt_av1_essential(
     quality: str | None = "medium",
     preset: int | None = None,
     crf: int | None = None,
-    scm: int | None = 0,
     luminance_qp_bias: int | None = 20,
+    scm: int | None = 0,
     progress: int | None = 3,
     **kwargs,
 ) -> dict[str, Any]:
     """
     This is a settings_builder for SVT-AV1-Essential.
     These parameters correspond to v3.1.2-Essential.
-    Repository: https://github.com/nekotrix/SVT-AV1-Essential
-    Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases
-    Linux build: `Build/linux/build.sh --native --static --release --enable-lto --enable-pgo`; note the available patches; clang recommended over gcc.
 
-    SVT-AV1-Essential is better for mini encodes targeting tiny filesize with `--quality` worse than or equal to `medium`.
-    For higer quality AV1 encodes, check out `settings_builder_5fish_svt_av1_psy`.
-    AV1 encoders in general have a lower quality ceiling. For high fidelity encodes, you should use x265 instead.
+    Repository: https://github.com/nekotrix/SVT-AV1-Essential .
+    Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases .
+    Linux build: apply patches if available, and build with `Build/linux/build.sh --native --static --release --enable-lto --enable-pgo` with clang highly recommended over gcc.
 
-    This provides a set of default parameters suitable for encoding clean sources.
+    SVT-AV1-Essential is better for mini encodes and is optimised to give a good looking result given any source, with or without filtering.
     You should not regrain before sending to SVT-AV1.
+
+    For higer quality mini and non mini encodes, check out `settings_builder_5fish_svt_av1_psy`.
 
     For better explanations of parameters, check the `Docs/Parameters.md` file in encoder's GitHub.
 
@@ -339,7 +312,7 @@ def settings_builder_svt_av1_essential(
     :param speed:           Adjust the speed.
                             `slower` (`--preset 2`) is the recommended starting point. `slow` (`--preset 4`) is faster.
     :param quality:         Adjust the quality.
-                            `medium` (`--crf 30`) is the recommended starting point. `low` (`--crf 35`), or `lower` (`--crf 40`) is lower.
+                            `medium` (`--crf 30`) is the recommended starting point. `high` (`--crf 25`) is higher, and `low` (`--crf 35`), or `lower` (`--crf 40`) is lower.
     """
     args = dict[str, Any]()
     args["_settings_builder_id"] = "SVT-AV1-Essential"
