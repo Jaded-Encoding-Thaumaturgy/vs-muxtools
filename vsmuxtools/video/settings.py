@@ -228,7 +228,7 @@ def settings_builder_5fish_svt_av1_psy(
 ) -> dict[str, Any]:
     """
     This is a settings_builder for 5fish/SVT-AV1-PSY.
-    These parameters correspond to `exp` branch of the encoder as of early March 2026.
+    These parameters correspond to mid March 2026 version of the encoder.
 
     Repository: https://github.com/5fish/svt-av1-psy .
     Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases .
@@ -236,7 +236,7 @@ def settings_builder_5fish_svt_av1_psy(
 
     For high fidelity encodes, start at `--preset 0 --crf 12.00`.
     You should regrain and do every other filtering just as you would for a high fidelity x265 encode. This will work fine.
-    But in addition to that, you can offload high frequency part of the regraining noise onto AV1's film grain layer by writing a photon noise table for even better efficiency.
+    For even better efficiency, you can offload high frequency part of the regraining noise onto AV1's film grain layer by writing a photon noise table.
 
     For middle quality (for example, ~ 6 Mbps) encodes, start at `--preset 2 --crf 20.00`.
     For most cases, you should be able to rely on writing a good photon noise table instead of regraining to achieve best detail retention for the given filesize. The builtin photon noise table of `SVTAV1` can deal with some basic situations as well. Otherwise you can do all other filtering as normal and make sure they are as protective as they can.
