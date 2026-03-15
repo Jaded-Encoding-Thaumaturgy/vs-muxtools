@@ -14,7 +14,7 @@ classifiers = [
     "Natural Language :: English",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
     "Typing :: Typed",
     "Topic :: Multimedia :: Video",
@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Multimedia :: Video :: Conversion",
     "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 readme = "README.md"
 license = "MPL-2.0"
 
@@ -37,6 +37,7 @@ dev = [
     "sox>=1.5.0",
     "mypy==1.17.1",
     "ty==0.0.1a19",
+    "vsstubs>=1.0.2; python_version>='3.13'",
 ]
 
 [build-system]
@@ -66,7 +67,7 @@ distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}.dirty"
 [tool.ruff]
 line-length = 150
 indent-width = 4
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 ignore = ["E722"]

@@ -67,6 +67,7 @@ class x264(SupportsQP):
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
+        assert process.stdin
         clip.output(process.stdin, y4m=True)
         process.communicate()
         return out
@@ -131,6 +132,7 @@ class x265(SupportsQP):
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
+        assert process.stdin
         clip.output(process.stdin, y4m=True)
         process.communicate()
         return out
@@ -365,6 +367,7 @@ class SVTAV1(VideoEncoder):
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
+        assert process.stdin
         clip.output(process.stdin, y4m=True)
         process.communicate()
 

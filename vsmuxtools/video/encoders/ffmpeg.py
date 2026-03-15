@@ -45,6 +45,7 @@ class FFV1(FFMpegEncoder):
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
+        assert process.stdin
         clip.output(process.stdin, y4m=True)
         process.communicate()
 
@@ -94,6 +95,7 @@ class ProRes(FFMpegEncoder):
 
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
+        assert process.stdin
         clip.output(process.stdin, y4m=True)
         process.communicate()
         enc_settings = self.get_mediainfo_settings(["-profile", str(profile)] + self.get_custom_args(), False)

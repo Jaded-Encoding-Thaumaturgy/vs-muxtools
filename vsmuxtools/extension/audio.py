@@ -45,7 +45,7 @@ def export_audionode(node: vs.AudioNode, outfile: PathLike | None = None) -> Pat
 
 
 def do_audio(
-    fileIn: PathLike | src_file | vs.AudioNode,
+    fileIn: PathLike | list[PathLike] | list[Path] | src_file | vs.AudioNode,
     track: int = 0,
     trims: Trim | list[Trim] | None = None,
     timesource: TimeSourceT = None,

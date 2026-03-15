@@ -161,7 +161,7 @@ class src_file(vs_object):
 
     def init(
         self,
-        bits: int | None = None,
+        bits: int | None = 16,
         matrix: MatrixLike | None = None,
         transfer: TransferLike | None = None,
         primaries: PrimariesLike | None = None,
@@ -169,18 +169,28 @@ class src_file(vs_object):
         color_range: ColorRangeLike | None = None,
         field_based: FieldBasedLike | None = None,
         strict: bool = False,
-        dither_type: DitherType = DitherType.AUTO,
+        dither_type: DitherType = DitherType.RANDOM,
     ) -> vs.VideoNode:
         """
         Getter that calls `vstools.initialize_clip` on the src clip for convenience
         """
         return initialize_clip(
-            self.src, bits, matrix, transfer, primaries, chroma_location, color_range, field_based, strict, dither_type, func=self.init
-        )
+            clip=self.src,
+            bits=bits,
+            matrix=matrix,
+            transfer=transfer,
+            primaries=primaries,
+            chroma_location=chroma_location,
+            color_range=color_range,
+            field_based=field_based,
+            strict=strict,
+            dither_type=dither_type,
+            func=self.init,
+        )  # type: ignore # shush this works
 
     def init_cut(
         self,
-        bits: int | None = None,
+        bits: int | None = 16,
         matrix: MatrixLike | None = None,
         transfer: TransferLike | None = None,
         primaries: PrimariesLike | None = None,
@@ -188,14 +198,24 @@ class src_file(vs_object):
         color_range: ColorRangeLike | None = None,
         field_based: FieldBasedLike | None = None,
         strict: bool = False,
-        dither_type: DitherType = DitherType.AUTO,
+        dither_type: DitherType = DitherType.RANDOM,
     ) -> vs.VideoNode:
         """
         Getter that calls `vstools.initialize_clip` on the src_cut clip for convenience
         """
         return initialize_clip(
-            self.src_cut, bits, matrix, transfer, primaries, chroma_location, color_range, field_based, strict, dither_type, func=self.init_cut
-        )
+            clip=self.src_cut,
+            bits=bits,
+            matrix=matrix,
+            transfer=transfer,
+            primaries=primaries,
+            chroma_location=chroma_location,
+            color_range=color_range,
+            field_based=field_based,
+            strict=strict,
+            dither_type=dither_type,
+            func=self.init,
+        )  # type: ignore # shush this works
 
     def get_audio(self, track: int = 0, **kwargs) -> vs.AudioNode:
         """
@@ -250,7 +270,7 @@ class src_file(vs_object):
     ) -> "src_file":
         root_dir = ensure_path_exists(root_dir, "BDMV", True)
         mpls = core.mpls.Read(str(root_dir), playlist, angle)
-        playlist_clips: list[str] = mpls["clip"]
+        playlist_clips: list[str] = mpls["clip"]  # type: ignore
         if entries is not None:
             if isinstance(entries, int):
                 clips = playlist_clips[entries]
