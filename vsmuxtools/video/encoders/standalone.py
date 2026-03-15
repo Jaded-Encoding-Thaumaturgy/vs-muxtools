@@ -174,6 +174,37 @@ class LosslessX264(VideoEncoder):
         return VideoFile(out)
 
 
+SVTAV1_LIGHT_NOISE_TABLE_LIMITED = """filmgrn1
+E 0 18446744073709551615 1 787 1
+	p 3 7 0 8 0 1 128 192 256 128 192 256
+    sY 10 0 0 16 0 17 2 18 3 157 3 177 4 233 4 234 2 235 0 255 0
+	sCb 0
+	sCr 0
+	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
+	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
+	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
+"""
+"""
+A table for photon noise that serves as a light dither layer to prevent banding.\n
+With cutoffs for limited range clips.
+"""
+
+SVTAV1_LIGHT_NOISE_TABLE_FULL = """filmgrn1
+E 0 18446744073709551615 1 787 1
+	p 3 7 0 8 0 1 128 192 256 128 192 256
+	sY 14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5
+	sCb 0
+	sCr 0
+	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
+	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
+	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
+"""
+"""
+A table for photon noise that serves as a light dither layer to prevent banding.\n
+With cutoffs for full range clips.
+"""
+
+
 @dataclass(config=allow_extra)
 class SVTAV1(VideoEncoder):
     """
@@ -309,27 +340,9 @@ class SVTAV1(VideoEncoder):
                 fgs_table = get_workdir() / "svt_av1_fgs.tbl"
                 with fgs_table.open("w", encoding="utf-8") as fgs_table_f:
                     if clip_props.get("range") == SVT_AV1_RANGES[1]:
-                        fgs_table_f.write("""filmgrn1
-E 0 18446744073709551615 1 787 1
-	p 3 7 0 8 0 1 128 192 256 128 192 256
-    sY 10 0 0 16 0 17 2 18 3 157 3 177 4 233 4 234 2 235 0 255 0
-	sCb 0
-	sCr 0
-	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
-	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
-	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
-""")
+                        fgs_table_f.write(SVTAV1_LIGHT_NOISE_TABLE_LIMITED)
                     else:
-                        fgs_table_f.write("""filmgrn1
-E 0 18446744073709551615 1 787 1
-	p 3 7 0 8 0 1 128 192 256 128 192 256
-	sY 14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5
-	sCb 0
-	sCr 0
-	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
-	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
-	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
-""")
+                        fgs_table_f.write(SVTAV1_LIGHT_NOISE_TABLE_FULL)
 
                 self.update_custom_args(fgs_table=str(fgs_table))
 
