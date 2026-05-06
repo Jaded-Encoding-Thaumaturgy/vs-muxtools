@@ -283,14 +283,19 @@ def settings_builder_svt_av1_essential(
     quality: str | None = "medium",
     preset: int | None = None,
     crf: int | None = None,
-    luminance_qp_bias: int | None = 20,
     scm: int | None = 0,
+    luminance_qp_bias: int | None = 50,
+    enable_tf: int | None = 2,
+    tune: int | None = 0,
+    ac_bias: float | None = 0.7,
+    noise_adaptive_filtering: int | None = 0,
+    enable_dlf: int | None = 3,
     progress: int | None = 3,
     **kwargs,
 ) -> dict[str, Any]:
     """
     This is a settings_builder for SVT-AV1-Essential.
-    These parameters correspond to v3.1.2-Essential.
+    These parameters correspond to v4.0.1-Essential.
 
     Repository: https://github.com/nekotrix/SVT-AV1-Essential .
     Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases .
