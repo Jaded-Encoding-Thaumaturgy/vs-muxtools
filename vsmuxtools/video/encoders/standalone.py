@@ -7,6 +7,7 @@ from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
 import re
 import json
+import random
 
 from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
@@ -15,6 +16,77 @@ from ..settings import shift_zones, zones_to_args, norm_zones
 from vsmuxtools.utils.source import generate_svt_av1_keyframes, src_file
 
 __all__ = ["x264", "x265", "LosslessX264", "SVTAV1"]
+
+
+SVTAV1_LIGHT_NOISE_TABLE_LIMITED = """filmgrn1
+E 0 18446744073709551615 1 787 1
+	p 3 7 0 8 0 1 128 192 256 128 192 256
+    sY 10 0 0 16 0 17 2 18 3 157 3 177 4 233 4 234 2 235 0 255 0
+	sCb 0
+	sCr 0
+	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
+	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
+	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
+"""
+"""
+A table for photon noise that serves as a light dither layer to prevent banding.\n
+With cutoffs for limited range clips.
+"""
+
+SVTAV1_LIGHT_NOISE_TABLE_FULL = """filmgrn1
+E 0 18446744073709551615 1 787 1
+	p 3 7 0 8 0 1 128 192 256 128 192 256
+	sY 14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5
+	sCb 0
+	sCr 0
+	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
+	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
+	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
+"""
+"""
+A table for photon noise that serves as a light dither layer to prevent banding.\n
+With cutoffs for full range clips.
+"""
+
+def x265_write_light_noise_table_helper(target: PathLike, length: int, s: str):
+    seed_pool = [65506, 65501, 65484, 65476, 65466, 65464, 65420, 65417, 65391, 65345, 65333, 65299,
+                 65260, 64921, 64917, 64831, 64774, 64693, 64448, 64436, 64435, 64423, 64384, 64332,
+                 64285, 64274, 64240, 64189, 64176, 64126, 64113, 64093, 63947, 63647, 63580, 63507,
+                 63504, 63456, 63023, 62518, 62359, 62258, 62156, 62143, 62040, 61851, 61692, 61482,
+                 61476, 60973, 60878, 60711, 60619, 60584, 60537, 60501, 60123, 59991, 59929, 59846,
+                 59724, 59669, 59665, 59637, 59625, 59621, 59180, 59119]
+    seeds = [63504]
+    while(len(seeds) < length):
+        n = random.choice(seed_pool)
+        if n not in seeds[-32:]:
+            seeds.append(n)
+
+    with target.open("wb") as f:
+        for seed in seeds:
+            f.write((1).to_bytes(4, byteorder="little", signed=True))
+            f.write((seed).to_bytes(2, byteorder="little", signed=False))
+            f.write((1).to_bytes(4, byteorder="little", signed=True))
+        
+            for n in s.split():
+                f.write((int(n)).to_bytes(4, byteorder="little", signed=True))
+            f.write((0).to_bytes(4, byteorder="little", signed=True))
+            f.write((0).to_bytes(4, byteorder="little", signed=True))
+            f.write((8).to_bytes(4, byteorder="little", signed=True))
+        
+            f.write((3).to_bytes(4, byteorder="little", signed=True))
+            for n in "3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18".split():
+                f.write((int(n)).to_bytes(4, byteorder="little", signed=True))
+            f.write((7).to_bytes(4, byteorder="little", signed=True))
+            f.write((0).to_bytes(4, byteorder="little", signed=True))
+        
+            f.write((1).to_bytes(4, byteorder="little", signed=True))
+            f.write((1).to_bytes(4, byteorder="little", signed=True))
+
+def x265_write_light_noise_table_limited(target: PathLike, length: int):
+    x265_write_light_noise_table_helper(target, legnth, "10 0 0 16 0 17 2 18 3 157 3 177 4 233 4 234 2 235 0 255 0")
+
+def x265_write_light_noise_table_full(target: PathLike, length: int):
+    x265_write_light_noise_table_helper(target, legnth, "14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5")
 
 
 @dataclass(config=allow_extra)
@@ -97,6 +169,10 @@ class x265(SupportsQP):
                                 This will be disabled by default if you are using a file and otherwise enabled.
                                 Files can have their own tokens like in vs-encode/vardautomation that will be filled in.
 
+    :param light_photon_noise:  Add a layer of light photon noise on top, serving a similar role as a light regrain / dither.
+                                This feature is supported on mpv but not on a lot of other players, which means it shouldn't replace your main regrain.
+                                Automatically disabled when either `--aom-film-grain` or `--film-grain` is used.
+
     :param sar:                 Here you can pass your Pixel / Sample Aspect Ratio. This will overwrite whatever is in the clip if passed.
     :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC (skill issue tbh)
     :param csv:                 Either a bool to enable or disable csv logging or a Filepath for said csv.
@@ -105,6 +181,7 @@ class x265(SupportsQP):
     resumable: bool = True
     csv: bool | PathLike = True
     x265 = True
+    light_photon_noise: bool = False
 
     def __post_init__(self):
         self.executable = get_executable("x265")
@@ -112,6 +189,7 @@ class x265(SupportsQP):
 
     def _encode_clip(self, clip: vs.VideoNode, out: Path, qpfile: str | None, start_frame: int = 0) -> Path:
         args = [self.executable, "-o", str(out.resolve())]
+        clip_props = props_dict(clip, False)
         if self.csv:
             if isinstance(self.csv, bool):
                 show_name = get_setup_attr("show_name", "")
@@ -121,6 +199,14 @@ class x265(SupportsQP):
             args.extend(["--csv", str(csv_file)])
         if qpfile:
             args.extend(["--qpfile", qpfile])
+        if self.light_photon_noise:
+            if not any(key in self.get_custom_args_dict() for key in {"aom_film_grain", "film_grain"}):
+                fgs_table = get_workdir() / "x265_grain.bin"
+                if clip_props.get("range") == "limited":
+                    x265_write_light_noise_table_limited(fgs_table, clip.num_frames)
+                else:
+                    x265_write_light_noise_table_full(fgs_table, clip.num_frames)
+                self.update_custom_args(aom_film_grain=str(fgs_table))
         if self.settings:
             args.extend(self.settings if isinstance(self.settings, list) else shlex.split(str(self.settings)))
         if self.zones:
@@ -174,37 +260,6 @@ class LosslessX264(VideoEncoder):
         avc._update_settings(clip, False)
         avc._encode_clip(clip, out, None, 0)
         return VideoFile(out)
-
-
-SVTAV1_LIGHT_NOISE_TABLE_LIMITED = """filmgrn1
-E 0 18446744073709551615 1 787 1
-	p 3 7 0 8 0 1 128 192 256 128 192 256
-    sY 10 0 0 16 0 17 2 18 3 157 3 177 4 233 4 234 2 235 0 255 0
-	sCb 0
-	sCr 0
-	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
-	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
-	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
-"""
-"""
-A table for photon noise that serves as a light dither layer to prevent banding.\n
-With cutoffs for limited range clips.
-"""
-
-SVTAV1_LIGHT_NOISE_TABLE_FULL = """filmgrn1
-E 0 18446744073709551615 1 787 1
-	p 3 7 0 8 0 1 128 192 256 128 192 256
-	sY 14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5
-	sCb 0
-	sCr 0
-	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
-	cCb -3 9 -15 20 -6 0 0 9 -22 32 -50 10 -3 1 -15 32 -61 70 -26 -1 -2 17 -40 59 11
-	cCr -3 9 -15 20 -6 0 1 9 -21 32 -50 10 -3 0 -14 31 -61 71 -26 -1 -1 17 -40 58 11
-"""
-"""
-A table for photon noise that serves as a light dither layer to prevent banding.\n
-With cutoffs for full range clips.
-"""
 
 
 @dataclass(config=allow_extra)
