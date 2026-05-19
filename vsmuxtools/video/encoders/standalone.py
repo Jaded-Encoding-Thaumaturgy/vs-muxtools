@@ -17,6 +17,7 @@ from .noise import (
 )
 from ..settings import shift_zones, zones_to_args, norm_zones
 from ..clip_metadata import props_dict, SVT_AV1_RANGES
+from ..resumable import merge_parts, parse_keyframes
 
 from vsmuxtools.utils.source import generate_svt_av1_keyframes, src_file
 
@@ -223,10 +224,14 @@ class SVTAV1(VideoEncoder):
                                For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
                                On supported forks, you may also use `--photon-noise` parameter to apply a basic photon noise with configurable strength but not coarseness.
                                Automatically disabled when either `--film-grain`, `--fgs-table`, or `--photon-noise` are used.
+    :param resumable:          Enable or disable resumable encodes.
+    :param quiet_merging:      Suppress the mkvmerge output when combining chunks.
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
     light_photon_noise: bool = True
+    resumable: bool = True
+    quiet_merging: bool = True
     _encoder_id: str | None = None
     _settings_builder_id: str | None = None
 
@@ -267,15 +272,13 @@ class SVTAV1(VideoEncoder):
 
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
 
-        tags = dict[str, str](ENCODER=str(self._encoder_id))
-        args = [self.executable, "--input", "-", "--output", str(output)]
-
         if not any(key in self.get_custom_args_dict() for key in {"preset", "speed"}):
             self.update_custom_args(preset=2)
         if not any(key in self.get_custom_args_dict() for key in {"crf", "quality", "qp", "rc"}):
             self.update_custom_args(crf=22)
 
         # sd_clip
+        sd_keyframes = None
         if self.sd_clip:
             if "force_key_frames" in self.get_custom_args_dict():
                 raise error("Scene detection from `sd_clip` can't be applied when `--force-key-frames` encoder parameter is already specified.", self)
@@ -303,21 +306,51 @@ class SVTAV1(VideoEncoder):
                 assert all(isinstance(f, int) for f in cache_config["scenecuts"])
 
                 info("Reusing existing scene detection.", self)
-                keyframes = cache_config["scenecuts"]
+                sd_keyframes = cache_config["scenecuts"]
             except Exception:
                 info("Performing scene detection...", self)
-                keyframes = generate_svt_av1_keyframes(sd_clip)
+                sd_keyframes = generate_svt_av1_keyframes(sd_clip)
 
                 cache_config = {
                     "frames": sd_clip.num_frames,
-                    "scenecuts": keyframes,
+                    "scenecuts": sd_keyframes,
                 }
                 with cache.open("w") as cache_f:
                     json.dump(cache_config, cache_f)
 
                 info("Scene detection complete.", self)
 
-            keyframes_str = "f,".join([str(i) for i in keyframes]) + "f"
+        start_frame = 0
+        parts = []
+        part_keyframes = []
+
+        if not self.resumable:
+            fout = output
+        else:
+            pattern = output.with_stem(output.stem + "_part_???")
+            parts = sorted(pattern.parent.glob(pattern.name))
+            info(f"Found {len(parts)} part{'s' if len(parts) != 1 else ''} for this encode")
+
+            for i, p in enumerate(parts):
+                try:
+                    info(f"Parsing keyframes for part {i}...")
+                    kf = parse_keyframes(p)[-1]
+                    if kf == 0:
+                        del parts[-1]
+                    else:
+                        part_keyframes.append(kf)
+                except:
+                    del parts[-1]
+
+            fout = output.with_stem(output.stem + f"_part_{len(parts):03.0f}")
+            start_frame = sum(part_keyframes)
+            info(f"Starting encode at frame {start_frame}")
+            clip = clip[start_frame:]
+
+        if sd_keyframes is not None:
+            adjusted_sd_keyframes = [0] + [k - start_frame for k in sd_keyframes if k > start_frame]
+            keyframes_str = "f,".join([str(i) for i in adjusted_sd_keyframes]) + "f"
+
             if "_c" not in self.get_custom_args_dict():
                 keyframes_file = get_workdir() / "svt_av1_keyframes.cfg"
                 with keyframes_file.open("w", encoding="utf-8") as keyframes_f:
@@ -339,6 +372,9 @@ class SVTAV1(VideoEncoder):
                         fgs_table_f.write(SVTAV1_LIGHT_NOISE_TABLE_FULL)
 
                 self.update_custom_args(fgs_table=str(fgs_table))
+
+        tags = dict[str, str](ENCODER=str(self._encoder_id))
+        args = [self.executable, "--input", "-", "--output", str(fout)]
 
         # user parameters
         args.extend(self.get_custom_args())
@@ -364,4 +400,10 @@ class SVTAV1(VideoEncoder):
         process.communicate()
 
         tags.update(ENCODER_SETTINGS=self.get_mediainfo_settings(args))
-        return VideoFile(output, tags=tags)
+
+        if self.resumable and parts:
+            info("Remuxing and merging parts...")
+            merge_parts(fout, output, part_keyframes, parts, self.quiet_merging)
+            return VideoFile(output, tags=tags)
+
+        return VideoFile(fout, tags=tags)
