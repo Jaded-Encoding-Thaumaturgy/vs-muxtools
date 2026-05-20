@@ -228,7 +228,7 @@ def settings_builder_5fish_svt_av1_psy(
 ) -> dict[str, Any]:
     """
     This is a settings_builder for 5fish/SVT-AV1-PSY.
-    These parameters correspond to mid March 2026 version of the encoder.
+    These parameters correspond to late April 2026 version of the encoder.
 
     Repository: https://github.com/5fish/svt-av1-psy .
     Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases .
@@ -284,12 +284,6 @@ def settings_builder_svt_av1_essential(
     preset: int | None = None,
     crf: int | None = None,
     scm: int | None = 0,
-    luminance_qp_bias: int | None = 50,
-    enable_tf: int | None = 2,
-    tune: int | None = 0,
-    ac_bias: float | None = 0.7,
-    noise_adaptive_filtering: int | None = 0,
-    enable_dlf: int | None = 3,
     progress: int | None = 3,
     **kwargs,
 ) -> dict[str, Any]:
