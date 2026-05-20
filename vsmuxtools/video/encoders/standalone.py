@@ -8,10 +8,13 @@ from muxtools.utils.dataclass import dataclass, allow_extra
 import re
 import json
 import random
+import sys
+import os
 
 from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
 from ..settings import shift_zones, zones_to_args, norm_zones
+from ..clip_metadata import props_dict, SVT_AV1_RANGES
 
 from vsmuxtools.utils.source import generate_svt_av1_keyframes, src_file
 
@@ -21,7 +24,7 @@ __all__ = ["x264", "x265", "LosslessX264", "SVTAV1"]
 SVTAV1_LIGHT_NOISE_TABLE_LIMITED = """filmgrn1
 E 0 18446744073709551615 1 787 1
 	p 3 7 0 8 0 1 128 192 256 128 192 256
-    sY 10 0 0 16 0 17 2 18 3 157 3 177 4 233 4 234 2 235 0 255 0
+    sY 9 0 0 16 0 17 2 18 3 157 3 177 4 233 4 235 0 255 0
 	sCb 0
 	sCr 0
 	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
@@ -36,7 +39,7 @@ With cutoffs for limited range clips.
 SVTAV1_LIGHT_NOISE_TABLE_FULL = """filmgrn1
 E 0 18446744073709551615 1 787 1
 	p 3 7 0 8 0 1 128 192 256 128 192 256
-	sY 14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5
+	sY 6 0 4 20 3 157 3 177 4 235 4 255 5
 	sCb 0
 	sCr 0
 	cY 3 4 3 3 3 3 3 3 4 2 0 2 3 3 3 2 -7 -19 -4 1 3 2 0 -18
@@ -83,10 +86,10 @@ def x265_write_light_noise_table_helper(target: PathLike, length: int, s: str):
             f.write((1).to_bytes(4, byteorder="little", signed=True))
 
 def x265_write_light_noise_table_limited(target: PathLike, length: int):
-    x265_write_light_noise_table_helper(target, legnth, "10 0 0 16 0 17 2 18 3 157 3 177 4 233 4 234 2 235 0 255 0")
+    x265_write_light_noise_table_helper(target, length, "9 0 0 16 0 17 2 18 3 157 3 177 4 233 4 235 0 255 0")
 
 def x265_write_light_noise_table_full(target: PathLike, length: int):
-    x265_write_light_noise_table_helper(target, legnth, "14 0 4 20 3 39 3 59 3 78 3 98 3 118 3 137 3 157 3 177 4 196 4 216 4 235 4 255 5")
+    x265_write_light_noise_table_helper(target, length, "6 0 4 20 3 157 3 177 4 235 4 255 5")
 
 
 @dataclass(config=allow_extra)
@@ -206,6 +209,20 @@ class x265(SupportsQP):
                     x265_write_light_noise_table_limited(fgs_table, clip.num_frames)
                 else:
                     x265_write_light_noise_table_full(fgs_table, clip.num_frames)
+                try:
+                    fgs_table = fgs_table.relative_to(Path.cwd())
+                    if (os.name == "nt" and sys.version_info[1] >= 12) or \
+                       (os.name == "posix" and sys.version_info[1] >= 7):
+                        if Path.cwd().is_mount():
+                            raise ValueError
+                # Although I didn't find the code for it, in the tests it looks like vs-muxtools will always switch cwd to workdir,
+                # so the `relative_to` will always success and this `except` will never trigger, which is nice.
+                except ValueError:
+                    warn("Due to an oversight in x265, the complete path for the aom film grain table will be logged into the video stream, viewable using tools like MediaInfo.", self)
+                    warn("vs-muxtools by default tries to make the path relative. This way video stream only contains the path from cwd to the film grain table in the workdir.", self)
+                    warn("This warning is displayed either when workdir is not relative to cwd, or your cwd is a mount point.", self)
+                    warn("Right now, this below is the path that will be logged. If this doesn't contain anything sensitive, everything is good. If it does, change your cwd and rerun the encode.", self)
+                    warn(str(fgs_table), self)
                 self.update_custom_args(aom_film_grain=str(fgs_table))
         if self.settings:
             args.extend(self.settings if isinstance(self.settings, list) else shlex.split(str(self.settings)))
@@ -316,8 +333,6 @@ class SVTAV1(VideoEncoder):
         elif clip.format.bits_per_sample < 10:
             warn("SVT-AV1 works best at 10 bit.\nClip will be converted to 10 bit", self, 2)
             clip = finalize_clip(clip, 10)
-
-        from vsmuxtools.video.clip_metadata import props_dict, SVT_AV1_RANGES
 
         clip_props = props_dict(clip, False, SVT_AV1_RANGES)
         match int(clip_props["chromaloc"]):
