@@ -228,7 +228,7 @@ def settings_builder_5fish_svt_av1_psy(
 ) -> dict[str, Any]:
     """
     This is a settings_builder for 5fish/SVT-AV1-PSY.
-    These parameters correspond to late April 2026 version of the encoder.
+    These parameters correspond to late May 2026 version of the encoder.
 
     Repository: https://github.com/5fish/svt-av1-psy .
     Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases .
