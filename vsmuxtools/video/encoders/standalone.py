@@ -226,12 +226,16 @@ class SVTAV1(VideoEncoder):
                                Automatically disabled when either `--film-grain`, `--fgs-table`, or `--photon-noise` are used.
     :param resumable:          Enable or disable resumable encodes.
     :param quiet_merging:      Suppress the mkvmerge output when combining chunks.
+    :param force_webm:         Force WebM output (only applies to SVT-AV1-Essential v4.0.1+).
+                               When disabled, the format is chosen based on the output filename, allowing you to output to IVF.
+                               Has no effect on other forks.
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
     light_photon_noise: bool = True
     resumable: bool = True
     quiet_merging: bool = True
+    force_webm: bool = True
     _encoder_id: str | None = None
     _settings_builder_id: str | None = None
 
@@ -271,6 +275,17 @@ class SVTAV1(VideoEncoder):
                 raise error("AV1 only supports LEFT and TOPLEFT chroma locations!", self)
 
         output = make_output("svtav1", ext="ivf", user_passed=outfile)
+
+        if "Essential" in self._encoder_id:
+            version_match = re.search(r"(\d+)\.(\d+)\.(\d+)", self._encoder_id)
+            if version_match and tuple(map(int, version_match.groups())) >= (4, 0, 1):
+                if output.suffix.lower() == ".ivf":
+                    if self.force_webm:
+                        warn("SVT-AV1-Essential v4.0.1+ forces WebM output by default. Changing output extension to .webm.", self)
+                        output = output.with_suffix(".webm")
+                    else:
+                        info("Forcing IVF output. No encoder metadata will be written.", self)
+                        self.update_custom_args(webm=0)
 
         if not any(key in self.get_custom_args_dict() for key in {"preset", "speed"}):
             self.update_custom_args(preset=2)
@@ -376,6 +391,12 @@ class SVTAV1(VideoEncoder):
         tags = dict[str, str](ENCODER=str(self._encoder_id))
         args = [self.executable, "--input", "-", "--output", str(fout)]
 
+        # ensure parent folder exists, encoder will output to unexpected location otherwise
+        parent_dir = fout.parent.resolve()
+        if not parent_dir.exists():
+            info(f"Creating output directory: '{parent_dir}'", self)
+            parent_dir.mkdir(parents=True, exist_ok=True)
+
         # user parameters
         args.extend(self.get_custom_args())
 
@@ -401,7 +422,7 @@ class SVTAV1(VideoEncoder):
 
         tags.update(ENCODER_SETTINGS=self.get_mediainfo_settings(args))
 
-        if self.resumable and parts:
+        if self.resumable:
             info("Remuxing and merging parts...")
             merge_parts(fout, output, part_keyframes, parts, self.quiet_merging)
             return VideoFile(output, tags=tags)

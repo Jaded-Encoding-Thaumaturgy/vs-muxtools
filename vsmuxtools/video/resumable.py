@@ -66,9 +66,13 @@ def merge_parts(last: Path, original_out: Path, keyframes: list[int], parts: lis
     mkv_parts.append(last_mkv)
     _to_delete.update([last_mkv, last])
 
-    out_mkv = original_out.with_suffix(".mkv").resolve()
+    if original_out.suffix.lower() == ".webm":
+        out_mkv = original_out.resolve()
+        args = [mkvmerge, "--webm", "-o", str(out_mkv)]
+    else:
+        out_mkv = original_out.with_suffix(".mkv").resolve()
+        args = [mkvmerge, "-o", str(out_mkv)]
 
-    args = [mkvmerge, "-o", str(out_mkv)]
     first = True
     for part in mkv_parts:
         if not first:
@@ -79,12 +83,16 @@ def merge_parts(last: Path, original_out: Path, keyframes: list[int], parts: lis
     if run_commandline(args, quiet) > 1:
         raise error("Failed to remux last part", merge_parts)
 
-    info("Extracting merged part...")
-    args = [mkvextract, str(out_mkv), "tracks", f"0:{str(original_out.resolve())}"]
-    if run_commandline(args, quiet) > 1:
-        raise error("Failed to extract merged track!", merge_parts)
-
-    _to_delete.add(out_mkv)
+    if original_out.suffix.lower() == ".mkv":
+        info("Merged encode parts successfully. Final output will remain muxed as MKV.")
+    elif original_out.suffix.lower() == ".webm":
+        info("Merged encode parts successfully. Final output will remain muxed as WebM.")
+    else:
+        info("Extracting merged part...")
+        args = [mkvextract, str(out_mkv), "tracks", f"0:{str(original_out.resolve())}"]
+        if run_commandline(args, quiet) > 1:
+            raise error("Failed to extract merged track!", merge_parts)
+        _to_delete.add(out_mkv)
 
     for f in _to_delete:
         f.unlink(True)
