@@ -274,18 +274,20 @@ class SVTAV1(VideoEncoder):
             case _:
                 raise error("AV1 only supports LEFT and TOPLEFT chroma locations!", self)
 
-        output = make_output("svtav1", ext="ivf", user_passed=outfile)
-
+        ext = "ivf"
         if "Essential" in self._encoder_id:
             version_match = re.search(r"(\d+)\.(\d+)\.(\d+)", self._encoder_id)
             if version_match and tuple(map(int, version_match.groups())) >= (4, 0, 1):
-                if output.suffix.lower() == ".ivf":
-                    if self.force_webm:
-                        warn("SVT-AV1-Essential v4.0.1+ forces WebM output by default. Changing output extension to .webm.", self)
-                        output = output.with_suffix(".webm")
-                    else:
-                        info("Forcing IVF output. No encoder metadata will be written.", self)
-                        self.update_custom_args(webm=0)
+                if not outfile.lower().endswith(".ivf"):
+                    ext = "webm"
+                elif self.force_webm:
+                    warn("SVT-AV1-Essential v4.0.1+ forces WebM output by default. Changing output extension to '.webm'.", self)
+                    ext = "webm"
+                else:
+                    warn("Outputting to IVF. No encoder metadata will be written.", self)
+                    self.update_custom_args(webm=0)
+
+        output = make_output("svtav1", ext=ext, user_passed=outfile)
 
         if not any(key in self.get_custom_args_dict() for key in {"preset", "speed"}):
             self.update_custom_args(preset=2)
