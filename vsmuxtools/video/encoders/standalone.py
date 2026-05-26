@@ -254,6 +254,19 @@ class SVTAV1(VideoEncoder):
                 warn(f"Unexpected encoder version: {self._encoder_id}.", self)
                 warn(f"Encoder version expected by the settings_builder: {self._settings_builder_id}.", self, 2)
 
+        if self.resumable:
+            mkvextract_ver_str = get_binary_version(get_executable("mkvextract"), r"mkvextract v([0-9.]+)", ["--version"])
+            if not mkvextract_ver_str:
+                raise error("Couldn't parse mkvextract version. v96.0 or newer is required for resumable AV1 encodes.", self)
+
+            try:
+                mkvextract_ver = tuple(map(int, mkvextract_ver_str.split('.')))
+            except ValueError:
+                raise error(f"Couldn't parse mkvextract version v'{mkvextract_ver_str}'. v96.0 or newer is required for resumable AV1 encodes.", self)
+                
+            if mkvextract_ver < (96, 0):
+                raise error(f"mkvextract v{mkvextract_ver_str} detected. v96.0 or newer is required for resumable AV1 encodes.", self)
+
         if not self.sd_clip and not self._encoder_id.startswith("SVT-AV1-Essential") and "_c" not in self.get_custom_args_dict():
             warn("Providing a clip or a file for scene detection is recommended for SVT-AV1.", self, 2)
 
