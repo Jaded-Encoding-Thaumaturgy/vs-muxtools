@@ -86,28 +86,31 @@ class x265(SupportsQP):
     """
     Encodes your clip to an hevc/h265 file using x265.
 
-    :param settings:            This will by default try to look for an `x265_settings` file in your cwd.
-                                If it doesn't find one it will warn you and resort to the default settings_builder preset.
-                                You can either pass settings as usual or a filepath here.
+    :param settings:            This will by default try to look for an `x265_settings` file in your cwd.\n
+                                If it doesn't find one it will warn you and resort to the default settings_builder preset.\n
+                                You can either pass settings as usual or a filepath here.\n
                                 If the filepath doesn't exist it will assume you passed actual settings and pass those to the encoder.
 
-    :param zones:               With this you can tweak settings of specific regions of the video.
-                                In x265 you're basically limited to a flat bitrate multiplier or force QP ("q")
-                                For example (100, 300, "b", 1.2) or [(100, 300, "q", 12), (500, 750, 1.3)]
+    :param zones:               With this you can tweak settings of specific regions of the video.\n
+                                In x265 you're basically limited to a flat bitrate multiplier or force QP ("q")\n
+                                For example (100, 300, "b", 1.2) or [(100, 300, "q", 12), (500, 750, 1.3)]\n
                                 If the third part is not a string it will assume a bitrate multiplier (or "b")
 
     :param qp_file:             Here you can pass a bool to en/disable or an existing filepath for one.
-    :param qp_clip:             Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
+    :param qp_clip:             Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.\n
                                 If neither a clip or a file are given it will simply skip.
                                 If only a clip is given it will generate one.
 
-    :param add_props:           This will explicitly add all props taken from the clip to the command line.
-                                This will be disabled by default if you are using a file and otherwise enabled.
+    :param add_props:           This will explicitly add all props taken from the clip to the command line.\n
+                                This will be disabled by default if you are using a file and otherwise enabled.\n
                                 Files can have their own tokens like in vs-encode/vardautomation that will be filled in.
 
-    :param light_photon_noise:  Add a layer of light photon noise on top, serving a similar role as a light regrain / dither.
-                                This feature is supported on mpv but not on a lot of other players, which means it shouldn't replace your main regrain.
-                                Automatically disabled when either `--aom-film-grain` or `--film-grain` is used.
+    :param light_photon_noise:  Add a layer of light photon noise on top, serving a similar role as a light regrain / dither.\n
+                                This feature is supported on mpv but not on a lot of other players, which means it shouldn't replace your main regrain.\n
+                                Automatically disabled when either `--aom-film-grain` or `--film-grain` is used.\n
+                                Do note that x265 will log the path to the file containing the grain pattern so, if for whatever reason that can't be a relative one,
+                                you need to check the mediainfo and make sure it doesn't contain anything sensitive.\n
+                                **This is unlikely to happen if you don't mangle the muxtools workdir yourself.**
 
     :param sar:                 Here you can pass your Pixel / Sample Aspect Ratio. This will overwrite whatever is in the clip if passed.
     :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC (skill issue tbh)
@@ -145,19 +148,8 @@ class x265(SupportsQP):
                     x265_write_light_noise_table_full(fgs_table, clip.num_frames - start_frame)
                 try:
                     fgs_table = fgs_table.relative_to(Path.cwd())
-                    if (os.name == "nt" and sys.version_info[1] >= 12) or (os.name == "posix" and sys.version_info[1] >= 7):
-                        if Path.cwd().is_mount():
-                            raise ValueError
-                # Although I didn't find the code for it, in the tests it looks like vs-muxtools will always switch cwd to workdir,
-                # so the `relative_to` will always success and this `except` will never trigger, which is nice.
                 except ValueError:
-                    # fmt: off
-                    warn("Due to an oversight in x265, the complete path for the aom film grain table will be logged into the video stream, viewable using tools like MediaInfo.", self)
-                    warn("vs-muxtools by default tries to make the path relative. This way video stream only contains the path from cwd to the film grain table in the workdir.", self)
-                    warn("This warning is displayed either when workdir is not relative to cwd, or your cwd is a mount point.", self)
-                    warn("Right now, this below is the path that will be logged. If this doesn't contain anything sensitive, everything is good. If it does, change your cwd and rerun the encode.", self)
-                    warn(str(fgs_table), self)
-                    # fmt: on
+                    warn(f"The following grain table file path will be visible in the mediainfo:\n{str(fgs_table)}", self)
                 self.update_custom_args(aom_film_grain=str(fgs_table))
 
         if self.settings:
