@@ -269,7 +269,7 @@ class SVTAV1(VideoEncoder):
             if tuple(map(int, mkvextract_ver.split('.'))) < (96, 0):
                 raise error(f"mkvextract v{mkvextract_ver} detected. v96.0 or newer is required for resumable AV1 encodes.", self)
         except ValueError:
-            raise error(f"Couldn't parse mkvextract version v'{mkvextract_ver}'. v96.0 or newer is required for resumable AV1 encodes.", self)
+            raise error("Couldn't parse mkvextract version. v96.0 or newer is required for resumable AV1 encodes.", self)
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         if clip.format.bits_per_sample > 10:
@@ -289,10 +289,10 @@ class SVTAV1(VideoEncoder):
                 raise error("AV1 only supports LEFT and TOPLEFT chroma locations!", self)
 
         ext = "ivf"
-        if "Essential" in self._encoder_id:
+        if self._encoder_id is not None and "Essential" in self._encoder_id:
             version_match = re.search(r"(\d+)\.(\d+)\.(\d+)", self._encoder_id)
             if version_match and tuple(map(int, version_match.groups())) >= (4, 0, 1):
-                if not outfile.lower().endswith(".ivf"):
+                if outfile is not None and not str(outfile).lower().endswith(".ivf"):
                     ext = "webm"
                 elif self.force_webm:
                     warn("SVT-AV1-Essential v4.0.1+ forces WebM output by default. Changing output extension to '.webm'.", self)
