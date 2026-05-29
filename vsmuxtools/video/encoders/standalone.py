@@ -2,7 +2,7 @@ import shlex
 import subprocess
 from vstools import finalize_clip, vs, ChromaLocation
 from pathlib import Path
-from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, get_workdir, error
+from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, debug, get_workdir, error
 from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
 import re
@@ -255,20 +255,21 @@ class SVTAV1(VideoEncoder):
                 warn(f"Encoder version expected by the settings_builder: {self._settings_builder_id}.", self, 2)
 
         if self.resumable:
-            mkvextract_ver_str = get_binary_version(get_executable("mkvextract"), r"mkvextract v([0-9.]+)", ["--version"])
-            if not mkvextract_ver_str:
-                raise error("Couldn't parse mkvextract version. v96.0 or newer is required for resumable AV1 encodes.", self)
-
-            try:
-                mkvextract_ver = tuple(map(int, mkvextract_ver_str.split('.')))
-            except ValueError:
-                raise error(f"Couldn't parse mkvextract version v'{mkvextract_ver_str}'. v96.0 or newer is required for resumable AV1 encodes.", self)
-                
-            if mkvextract_ver < (96, 0):
-                raise error(f"mkvextract v{mkvextract_ver_str} detected. v96.0 or newer is required for resumable AV1 encodes.", self)
+            self._check_mkvextract_version()
 
         if not self.sd_clip and not self._encoder_id.startswith("SVT-AV1-Essential") and "_c" not in self.get_custom_args_dict():
             warn("Providing a clip or a file for scene detection is recommended for SVT-AV1.", self, 2)
+
+    def _check_mkvextract_version(self) -> None:
+        mkvextract_ver = get_binary_version(get_executable("mkvextract"), r"mkvextract v([0-9.]+)", ["--version"])
+        if not mkvextract_ver:
+            raise error("Couldn't parse mkvextract version. v96.0 or newer is required for resumable AV1 encodes.", self)
+
+        try:
+            if tuple(map(int, mkvextract_ver.split('.'))) < (96, 0):
+                raise error(f"mkvextract v{mkvextract_ver} detected. v96.0 or newer is required for resumable AV1 encodes.", self)
+        except ValueError:
+            raise error(f"Couldn't parse mkvextract version v'{mkvextract_ver}'. v96.0 or newer is required for resumable AV1 encodes.", self)
 
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         if clip.format.bits_per_sample > 10:
@@ -409,7 +410,7 @@ class SVTAV1(VideoEncoder):
         # ensure parent folder exists, encoder will output to unexpected location otherwise
         parent_dir = fout.parent.resolve()
         if not parent_dir.exists():
-            info(f"Creating output directory: '{parent_dir}'", self)
+            debug(f"Creating output directory: '{parent_dir}'", self)
             parent_dir.mkdir(parents=True, exist_ok=True)
 
         # user parameters
