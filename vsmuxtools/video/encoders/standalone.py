@@ -7,8 +7,6 @@ from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
 import re
 import json
-import sys
-import os
 from .base import SupportsQP, VideoEncoder
 from .types import LosslessPreset
 from .noise import (
