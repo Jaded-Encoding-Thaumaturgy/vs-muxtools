@@ -140,9 +140,9 @@ class x265(SupportsQP):
             if not any(key in self.get_custom_args_dict() for key in {"aom_film_grain", "film_grain"}):
                 fgs_table = get_workdir() / "x265_grain.bin"
                 if clip_props.get("range") == "limited":
-                    x265_write_light_noise_table_limited(fgs_table, clip.num_frames)
+                    x265_write_light_noise_table_limited(fgs_table, clip.num_frames - start_frame)
                 else:
-                    x265_write_light_noise_table_full(fgs_table, clip.num_frames)
+                    x265_write_light_noise_table_full(fgs_table, clip.num_frames - start_frame)
                 try:
                     fgs_table = fgs_table.relative_to(Path.cwd())
                     if (os.name == "nt" and sys.version_info[1] >= 12) or (os.name == "posix" and sys.version_info[1] >= 7):
