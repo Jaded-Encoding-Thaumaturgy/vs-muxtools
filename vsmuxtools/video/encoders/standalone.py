@@ -266,7 +266,7 @@ class SVTAV1(VideoEncoder):
             raise error("Couldn't parse mkvextract version. v96.0 or newer is required for resumable AV1 encodes.", self)
 
         try:
-            if tuple(map(int, mkvextract_ver.split('.'))) < (96, 0):
+            if tuple(map(int, mkvextract_ver.split("."))) < (96, 0):
                 raise error(f"mkvextract v{mkvextract_ver} detected. v96.0 or newer is required for resumable AV1 encodes.", self)
         except ValueError:
             raise error("Couldn't parse mkvextract version. v96.0 or newer is required for resumable AV1 encodes.", self)
