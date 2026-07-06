@@ -350,6 +350,8 @@ class SVTAV1(VideoEncoder):
                     cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache.json"
 
             try:
+                assert cache.exists()
+
                 with cache.open("r") as cache_f:
                     cache_config = json.load(cache_f)
 
