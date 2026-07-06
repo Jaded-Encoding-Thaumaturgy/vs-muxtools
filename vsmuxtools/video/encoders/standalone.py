@@ -1,6 +1,6 @@
 import shlex
 import subprocess
-from vstools import finalize_clip, vs, ChromaLocation
+from vstools import finalize_clip, vs, ChromaLocation, get_prop
 from pathlib import Path
 from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, debug, get_workdir, error
 from muxtools.utils.env import get_binary_version
@@ -227,6 +227,9 @@ class SVTAV1(VideoEncoder):
     :param sd_clip:            Perform scene detection for the encoder.
                                Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
                                It is recommended to use this scene detection for 5fish/SVT-AV1-PSY with the `--balancing-q-bias` system, while for SVT-AV1-Essential, you can rely on its own internal scene detection.
+    :param sd_cache_key:       Key to make the generated scene detection cache file uniquely identifiable. For example, when encoding several episodes in a show, this can be the episode number.
+                               If nothing is passed, the clip's source filename will be used as the key. No key will be used if it can't be found. Passing False will prevent the cache file from being generated.
+                               This prevents the cache from being overwritten by subsequent episodes or incorrectly reusing the cache for a different episode.
     :param light_photon_noise: Add a layer of light photon noise on top, serving a similar role as a light regrain / dither.
                                For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
                                On supported forks, you may also use `--photon-noise` parameter to apply a basic photon noise with configurable strength but not coarseness.
@@ -239,6 +242,7 @@ class SVTAV1(VideoEncoder):
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
+    sd_cache_key: str | int | bool | None = None
     light_photon_noise: bool = True
     resumable: bool = True
     quiet_merging: bool = True
@@ -334,7 +338,16 @@ class SVTAV1(VideoEncoder):
             if sd_clip.num_frames != clip.num_frames:
                 raise error("Scene detection clip `sd_clip` has different length than the `clip` being encoded", self)
 
-            cache = get_workdir() / "svt_av1_scene_detection_cache.json"
+            if self.sd_cache_key == False:
+                cache = None
+            elif isinstance(self.sd_cache_key, (str, int)):
+                cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{self.sd_cache_key}.json"
+            else:
+                sd_clip_path = get_prop(sd_clip, "IdxFilePath", t=str, default=None)
+                if sd_clip_path:
+                    cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{Path(sd_clip_path).name}.json"
+                else:
+                    cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache.json"
 
             try:
                 with cache.open("r") as cache_f:
@@ -350,12 +363,13 @@ class SVTAV1(VideoEncoder):
                 info("Performing scene detection...", self)
                 sd_keyframes = generate_svt_av1_keyframes(sd_clip)
 
-                cache_config = {
-                    "frames": sd_clip.num_frames,
-                    "scenecuts": sd_keyframes,
-                }
-                with cache.open("w") as cache_f:
-                    json.dump(cache_config, cache_f)
+                if cache is not None:
+                    cache_config = {
+                        "frames": sd_clip.num_frames,
+                        "scenecuts": sd_keyframes,
+                    }
+                    with cache.open("w") as cache_f:
+                        json.dump(cache_config, cache_f)
 
                 info("Scene detection complete.", self)
 
