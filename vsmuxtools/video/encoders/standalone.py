@@ -242,7 +242,7 @@ class SVTAV1(VideoEncoder):
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
-    sd_cache_key: str | int | bool | None = None
+    sd_cache_key: str | int | bool | None = True
     light_photon_noise: bool = True
     resumable: bool = True
     quiet_merging: bool = True
@@ -340,14 +340,14 @@ class SVTAV1(VideoEncoder):
 
             if self.sd_cache_key == False:
                 cache = None
-            elif isinstance(self.sd_cache_key, (str, int)):
-                cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{self.sd_cache_key}.json"
-            else:
+            elif self.sd_cache_key == True or self.sd_cache_key is None:
                 sd_clip_path = get_prop(sd_clip, "IdxFilePath", t=str, default=None)
                 if sd_clip_path:
                     cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{Path(sd_clip_path).name}.json"
                 else:
                     cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache.json"
+            else:
+                cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{self.sd_cache_key}.json"
 
             try:
                 assert cache.exists()
