@@ -227,9 +227,6 @@ class SVTAV1(VideoEncoder):
     :param sd_clip:            Perform scene detection for the encoder.
                                Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
                                It is recommended to use this scene detection for 5fish/SVT-AV1-PSY with the `--balancing-q-bias` system, while for SVT-AV1-Essential, you can rely on its own internal scene detection.
-    :param sd_cache_key:       Key to make the generated scene detection cache file uniquely identifiable. For example, when encoding several episodes in a show, this can be the episode number.
-                               If nothing is passed, the clip's source filename will be used as the key. No key will be used if it can't be found. Passing False will prevent the cache file from being generated.
-                               This prevents the cache from being overwritten by subsequent episodes or incorrectly reusing the cache for a different episode.
     :param light_photon_noise: Add a layer of light photon noise on top, serving a similar role as a light regrain / dither.
                                For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
                                On supported forks, you may also use `--photon-noise` parameter to apply a basic photon noise with configurable strength but not coarseness.
@@ -239,14 +236,17 @@ class SVTAV1(VideoEncoder):
     :param force_webm:         Force WebM output (only applies to SVT-AV1-Essential v4.0.1+).
                                When disabled, the format is chosen based on the output filename, allowing you to output to IVF.
                                Has no effect on other forks.
+    :param sd_cache_key:       Key to make the generated scene detection cache file uniquely identifiable.
+                               For example, when encoding several episodes in a show, this could be set as the episode number.
+                               If nothing is passed, the clip's source filename will be used. Passing False will prevent the cache file from being generated.
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
-    sd_cache_key: str | int | bool | None = True
     light_photon_noise: bool = True
     resumable: bool = True
     quiet_merging: bool = True
     force_webm: bool = True
+    sd_cache_key: str | int | bool | None = True
     _encoder_id: str | None = None
     _settings_builder_id: str | None = None
 
@@ -350,7 +350,7 @@ class SVTAV1(VideoEncoder):
                 cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{self.sd_cache_key}.json"
 
             try:
-                assert cache.exists()
+                assert cache is not None
 
                 with cache.open("r") as cache_f:
                     cache_config = json.load(cache_f)
