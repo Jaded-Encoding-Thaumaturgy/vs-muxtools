@@ -370,6 +370,9 @@ class SVTAV1(VideoEncoder):
                         "frames": sd_clip.num_frames,
                         "scenecuts": sd_keyframes,
                     }
+
+                    cache.parent.mkdir(parents=True, exist_ok=True)
+
                     with cache.open("w") as cache_f:
                         json.dump(cache_config, cache_f)
 
