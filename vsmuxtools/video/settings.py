@@ -235,6 +235,9 @@ def settings_builder_5fish_svt_av1_high_quality(
 
     Source Repository & Builds: https://github.com/5fish/svt-av1 .
 
+    You can denoise or regrain as normal before sending to the encoder.
+    However, utilising the film grain layer instead of regrain will be much more efficient.
+
     This settings_builder uses `--preset 0`. If it is too slow, you can switch to `--preset 2` without losing much quality.
 
     If you want to adjust the parameters for your source, check the Usage section in `README.md` in encoder's GitHub repository.
@@ -268,7 +271,7 @@ def settings_builder_5fish_svt_av1_mini(
 
     Source Repository & Builds: https://github.com/5fish/svt-av1 .
 
-    Compared to the `settings_builder_5fish_svt_av1_mini_high_dlf`, this version works best with clean sources.
+    Compared to the `settings_builder_5fish_svt_av1_mini_high_dlf`, this version works best with clean sources without regrain.
     Ideally you want to remove temporal noise as much as you can without damaging texture before sending to the encoder.
 
     If you want to adjust the parameters for your source, check the Usage section in `README.md` in encoder's GitHub repository.
@@ -290,12 +293,11 @@ def settings_builder_5fish_svt_av1_mini(
 
 def settings_builder_5fish_svt_av1_mini_high_dlf(
     preset: int = 2,
-    crf: float = 26.00,
-    lineart_psy_bias: int = 5,
-    texture_psy_bias: int = 4,
+    crf: float = 27.00,
+    lineart_psy_bias: int = 3,
+    texture_psy_bias: int = 5,
     dlf_bias_max_dlf: str | None = "24,4",
     dlf_bias_min_dlf: str | None = "16,0",
-    dlf_sharpness: int | None = 7,
     texture_cdef_bias_max_cdef: str | None = "0,0,0,0",
     progress: int | None = 2,
     **kwargs,
@@ -306,7 +308,8 @@ def settings_builder_5fish_svt_av1_mini_high_dlf(
 
     Source Repository & Builds: https://github.com/5fish/svt-av1 .
 
-    Compared to the `settings_builder_5fish_svt_av1_mini`, this high DLF version is suitable for noisy or even regrained sources.
+    Compared to the `settings_builder_5fish_svt_av1_mini`, this high DLF version is suitable for very noisy or regrained sources.
+    Denoise is not preferred even for very noisy sources.
 
     If you want to adjust the parameters for your source, check the Usage section in `README.md` in encoder's GitHub repository.
 
@@ -340,7 +343,7 @@ def settings_builder_svt_av1_essential(
     These parameters correspond to v4.0.1-Essential.
 
     Repository: https://github.com/nekotrix/SVT-AV1-Essential .
-    Windows build: https://github.com/Akatmks/svt-av1-psy-quality/releases .
+    Windows build: https://github.com/Akatmks/SVT-AV1-Builds .
     Linux build: apply patches if available, and build with `Build/linux/build.sh --native --static --release --enable-lto --enable-pgo` with clang highly recommended over gcc.
 
     For higer quality mini and non mini encodes, check out `settings_builder_5fish_svt_av1_psy`.
