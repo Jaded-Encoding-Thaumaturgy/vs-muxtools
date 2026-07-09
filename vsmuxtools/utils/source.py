@@ -494,7 +494,7 @@ def generate_svt_av1_keyframes(
     start_frame: int = 0,
     min_scene_length: int = 129,
     min_still_scene_length: int = 193,
-    max_scene_length: int = 257,
+    max_scene_length: int = 321,
 ) -> list[int]:
     """
     Run `generate_keyframes`, and then filter the WWXD keyframe result for SVT-AV1 derived encoders.
