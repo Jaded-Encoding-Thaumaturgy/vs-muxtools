@@ -262,6 +262,7 @@ def settings_builder_5fish_svt_av1_high_quality(
 
     return args | kwargs
 
+
 def settings_builder_5fish_svt_av1_mini(
     preset: int = 2,
     crf: float = 24.00,
@@ -295,6 +296,7 @@ def settings_builder_5fish_svt_av1_mini(
             args[k] = locals()[k]
 
     return args | kwargs
+
 
 def settings_builder_5fish_svt_av1_mini_high_dlf(
     preset: int = 2,
