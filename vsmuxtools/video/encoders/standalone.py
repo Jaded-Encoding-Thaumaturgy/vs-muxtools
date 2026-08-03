@@ -52,7 +52,7 @@ class x264(SupportsQP):
 
     :param sar:                 Here you can pass your Pixel / Sample Aspect Ratio. This will overwrite whatever is in the clip if passed.
     :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC.
-                                None will default to true if open-gop is enabled for this encoder.
+                                None will default to true if open-gop is disabled for this encoder.
     """
 
     resumable: bool | None = None
@@ -117,7 +117,7 @@ class x265(SupportsQP):
 
     :param sar:                 Here you can pass your Pixel / Sample Aspect Ratio. This will overwrite whatever is in the clip if passed.
     :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC.
-                                None will default to true if open-gop is enabled for this encoder.
+                                None will default to true if open-gop is disabled for this encoder.
     :param csv:                 Either a bool to enable or disable csv logging or a Filepath for said csv.
     """
 
