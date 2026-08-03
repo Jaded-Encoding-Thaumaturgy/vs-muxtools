@@ -18,8 +18,6 @@ __all__ = ["VideoEncoder", "FFMpegEncoder", "SupportsQP"]
 
 @dataclass
 class VideoEncoder(CLIKwargs, ABC):
-    resumable = False
-
     @abstractmethod
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         """
@@ -82,6 +80,7 @@ class SupportsQP(VideoEncoder):
     qp_clip: src_file | vs.VideoNode | None = None
     add_props: bool | None = None
     sar: str | None = None
+    resumable: bool | None = None
     quiet_merging: bool = True
     x265 = True
 
@@ -100,6 +99,8 @@ class SupportsQP(VideoEncoder):
         return ""
 
     def _allow_resumable(self, x265: bool) -> bool:
+        if self.resumable is False:
+            return False
         if not isinstance(self.settings, (str, list)):
             return True
 

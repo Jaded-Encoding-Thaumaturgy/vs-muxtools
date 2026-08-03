@@ -51,10 +51,11 @@ class x264(SupportsQP):
                                 Files can have their own tokens like in vs-encode/vardautomation that will be filled in.
 
     :param sar:                 Here you can pass your Pixel / Sample Aspect Ratio. This will overwrite whatever is in the clip if passed.
-    :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC (skill issue tbh)
+    :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC.
+                                None will default to true if open-gop is enabled for this encoder.
     """
 
-    resumable: bool = True
+    resumable: bool | None = None
     x265 = False
 
     def __post_init__(self):
@@ -115,11 +116,12 @@ class x265(SupportsQP):
                                 **This is unlikely to happen if you don't mangle the muxtools workdir yourself.**
 
     :param sar:                 Here you can pass your Pixel / Sample Aspect Ratio. This will overwrite whatever is in the clip if passed.
-    :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC (skill issue tbh)
+    :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC.
+                                None will default to true if open-gop is enabled for this encoder.
     :param csv:                 Either a bool to enable or disable csv logging or a Filepath for said csv.
     """
 
-    resumable: bool = True
+    resumable: bool | None = None
     csv: bool | PathLike = True
     x265 = True
     light_photon_noise: bool = False

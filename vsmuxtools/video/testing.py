@@ -126,7 +126,7 @@ class SettingsTester:
         """
         for encode in self.encodes:
             encoder = self.encoder.__class__(settings=encode[1])  # type: ignore
-            encoder.resumable = False
+            setattr(encoder, "resumable", False)
             if isinstance(self.encoder, SupportsQP) and self.qp_file:
                 encoder.qp_file = self.qp_file  # type: ignore
 
