@@ -33,8 +33,6 @@ from muxtools import (
     warn,
     ParsedFile,
 )
-import numpy as np
-from numpy.lib.stride_tricks import sliding_window_view
 
 from muxtools.audio.preprocess import classproperty
 
@@ -513,6 +511,9 @@ def generate_svt_av1_keyframes(
     On the other hand, making too much scenecut in scene detection, resulting in a lot of smaller and incomplete hierarchical strctures in each scene is generally a very bad idea.
     Since WWXD often has the tendency to place way too much scenecuts in challenging sections, the purpose of this function is to filter the result from WWXD and create scenes that has more efficient hierarchical structure as much as possible.
     """
+    import numpy as np
+    from numpy.lib.stride_tricks import sliding_window_view
+
     frames = generate_keyframes(clip, start_frame)
 
     if start_frame:
