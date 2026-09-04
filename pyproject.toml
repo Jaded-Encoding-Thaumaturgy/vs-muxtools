@@ -5,12 +5,16 @@ dynamic = ["version"]
 description = "The extension to muxtools with vapoursynth and encoding stuff"
 authors = [{ name = "Vodes", email = "vodes.imp@gmail.com" }]
 dependencies = [
-    "vapoursynth>=67",
-    "vsjetpack>=0.7.0",
-    "numpy>=1.24.3",
+    "vapoursynth>=75",
+    "vsjetpack>=2.0.0",
+    "numpy>=2.0.0",
     "muxtools>=0.4.2",
     "pyparsebluray>=0.1.4",
-    "wakepy~=1.0.0"
+    "vapoursynth-bestsource>=17.0",
+    "vapoursynth-ffms2>=5.2.0",
+    "vapoursynth-lsmas>=1282.0.0",
+    "vapoursynth-scxvid>=3.0",
+    "wakepy~=1.0.0",
 ]
 classifiers = [
     "Natural Language :: English",
@@ -28,14 +32,6 @@ requires-python = ">=3.12"
 readme = "README.md"
 license = "MPL-2.0"
 
-[project.optional-dependencies]
-extra = [
-    "vsjetpack[basic]>=1.5.0",
-    "vapoursynth-bestsource>=17.0",
-    "vapoursynth-ffms2>=5.2.0",
-    "vapoursynth-scxvid>=3.0"
-]
-
 [dependency-groups]
 dev = [
     "pytest>=8.3.4, <9.0.0",
@@ -47,7 +43,7 @@ dev = [
     "sox>=1.5.0",
     "mypy==1.17.1",
     "ty==0.0.1a19",
-    "vsstubs>=1.0.2"
+    "vsstubs>=1.0.2",
 ]
 
 [build-system]

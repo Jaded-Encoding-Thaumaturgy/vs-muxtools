@@ -22,7 +22,6 @@ from muxtools.utils.types import TimeScale, TimeScaleT, TimeSourceT
 from wakepy import keep
 
 from ..utils.source import src_file
-from ..utils.audio import audio_async_render
 
 __all__ = ["do_audio", "encode_audio", "export_audionode"]
 
@@ -36,12 +35,18 @@ def export_audionode(node: vs.AudioNode, outfile: PathLike | None = None) -> Pat
 
     :return:                Returns path
     """
+    from vstools.functions.render.progress import get_render_progress
+
     if not outfile:
         outfile = uniquify_path(Path(get_workdir(), "exported.wav"))
 
     outfile = ensure_path(outfile, export_audionode)
-    with open(outfile, "wb") as bf:
-        audio_async_render(node, bf)
+
+    w64 = any([node.num_channels > 2, node.bits_per_sample > 16, node.num_samples > 44100])
+
+    with outfile.open("wb") as bf, get_render_progress() as progress:
+        task = progress.add_task("Rendering audio...", total=node.num_frames)
+        node.output(bf, wav=not w64, w64=w64, progress_update=lambda curr, total: progress.update(task, total=total, completed=curr))
     return outfile
 
 
