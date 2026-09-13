@@ -1,7 +1,6 @@
 import re
 from vstools import vs
 from shlex import split
-from numpy import arange
 
 from .encoders import SupportsQP, VideoEncoder, x265
 from ..utils.source import SRC_FILE, src
@@ -27,6 +26,8 @@ def settings_to_dict(settings: str | list[str]) -> dict[str, str | None]:
 
 
 def resolve_var(var: str) -> list[str]:
+    import numpy as np
+
     has_equals = False
     if "=" in var:
         var = var.split("=")[1]
@@ -39,7 +40,7 @@ def resolve_var(var: str) -> list[str]:
         step = var.split("/")[2].strip()
         decimals = len(step.split(".")[1]) if "." in step else None
         step = float(step)
-        return [("=" if has_equals else " ") + str(round(val, decimals)) for val in arange(start, end + step, step) if round(val, decimals) <= end]
+        return [("=" if has_equals else " ") + str(round(val, decimals)) for val in np.arange(start, end + step, step) if round(val, decimals) <= end]
     else:
         return [f"{'=' if has_equals else ' '}{val.strip()}" for val in var.split(",")]
 
