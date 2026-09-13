@@ -1,6 +1,6 @@
 import shlex
 import subprocess
-from vstools import finalize_clip, vs, ChromaLocation
+from vstools import finalize_clip, vs, ChromaLocation, get_prop
 from pathlib import Path
 from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, debug, get_workdir, error
 from muxtools.utils.env import get_binary_version
@@ -227,6 +227,10 @@ class SVTAV1(VideoEncoder):
     :param sd_clip:            Perform scene detection for the encoder.
                                Can either be a straight up VideoNode or a SRC_FILE/FileInfo from this package.
                                It is recommended to use this scene detection for 5fish/SVT-AV1-PSY with the `--balancing-q-bias` system, while for SVT-AV1-Essential, you can rely on its own internal scene detection.
+    :param sd_cache:           Toggle or customize scene detection caching.
+                               Set to True to enable caching using the source filename as an identifier.
+                               Set to False to disable the scene detection cache entirely.
+                               Pass a string or integer (e.g., an episode number) to specify a custom cache identifier.
     :param light_photon_noise: Add a layer of light photon noise on top, serving a similar role as a light regrain / dither.
                                For a layer of noise with different strength or coarseness, you can generate it yourself following the guide available in AV1 weeb server.
                                On supported forks, you may also use `--photon-noise` parameter to apply a basic photon noise with configurable strength but not coarseness.
@@ -239,6 +243,7 @@ class SVTAV1(VideoEncoder):
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
+    sd_cache: str | int | bool = True
     light_photon_noise: bool = True
     resumable: bool = True
     quiet_merging: bool = True
@@ -334,9 +339,24 @@ class SVTAV1(VideoEncoder):
             if sd_clip.num_frames != clip.num_frames:
                 raise error("Scene detection clip `sd_clip` has different length than the `clip` being encoded", self)
 
-            cache = get_workdir() / "svt_av1_scene_detection_cache.json"
+            if self.sd_cache == True:
+                sd_clip_path = get_prop(sd_clip, "IdxFilePath", t=str, default=None)
+                if sd_clip_path:
+                    cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{Path(sd_clip_path).name}.json"
+                else:
+                    warn(
+                        "Failed to identify source filename; using default cache filename. Pass a unique ID or string to 'sd_cache' to prevent collisions during batch encodes.",
+                        self,
+                    )
+                    cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache.json"
+            elif self.sd_cache == False:
+                cache = None
+            else:
+                cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{self.sd_cache}.json"
 
             try:
+                assert cache is not None
+
                 with cache.open("r") as cache_f:
                     cache_config = json.load(cache_f)
 
@@ -350,12 +370,16 @@ class SVTAV1(VideoEncoder):
                 info("Performing scene detection...", self)
                 sd_keyframes = generate_svt_av1_keyframes(sd_clip)
 
-                cache_config = {
-                    "frames": sd_clip.num_frames,
-                    "scenecuts": sd_keyframes,
-                }
-                with cache.open("w") as cache_f:
-                    json.dump(cache_config, cache_f)
+                if cache is not None:
+                    cache_config = {
+                        "frames": sd_clip.num_frames,
+                        "scenecuts": sd_keyframes,
+                    }
+
+                    cache.parent.mkdir(parents=True, exist_ok=True)
+
+                    with cache.open("w") as cache_f:
+                        json.dump(cache_config, cache_f)
 
                 info("Scene detection complete.", self)
 
