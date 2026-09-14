@@ -14,12 +14,7 @@ You can also grab the latest stable ish versions from pip.
 
 [![PyPI version](https://badge.fury.io/py/vsmuxtools.svg)](https://badge.fury.io/py/vsmuxtools)
 
-### Optional dependencies
-
-You can now do a `pip install vsmuxtools[extra]` to also install **bestsource**, **ffms2**, **scxvid** and [vsjetpack\[basic\]](https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack#installation).<br>
-This requires Vapoursynth R74+.
-
 > [!IMPORTANT]
-> On **non-windows** this may require adding the custom JET index to your install command or pyproject.toml as mentioned in the vsjetpack readme.
+> `vs-jetpack` may require adding the custom JET index to your install command or pyproject.toml as mentioned in the vsjetpack readme **if you're not on windows**.
 >
 > For more information, [click here](https://github.com/Jaded-Encoding-Thaumaturgy/vs-wheels).
