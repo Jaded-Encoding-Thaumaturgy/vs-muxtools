@@ -210,7 +210,6 @@ class src_file(VSObject):
         chroma_location: ChromaLocationLike | None = None,
         color_range: ColorRangeLike | None = None,
         field_based: FieldBasedLike | None = None,
-        strict: bool = False,
         dither_type: DitherType = DitherType.RANDOM,
     ) -> vs.VideoNode:
         """
@@ -225,7 +224,6 @@ class src_file(VSObject):
             chroma_location=chroma_location,
             color_range=color_range,
             field_based=field_based,
-            strict=strict,
             dither_type=dither_type,
             func=self.init,
         )  # type: ignore # shush this works
@@ -239,7 +237,6 @@ class src_file(VSObject):
         chroma_location: ChromaLocationLike | None = None,
         color_range: ColorRangeLike | None = None,
         field_based: FieldBasedLike | None = None,
-        strict: bool = False,
         dither_type: DitherType = DitherType.RANDOM,
     ) -> vs.VideoNode:
         """
@@ -254,7 +251,6 @@ class src_file(VSObject):
             chroma_location=chroma_location,
             color_range=color_range,
             field_based=field_based,
-            strict=strict,
             dither_type=dither_type,
             func=self.init,
         )  # type: ignore # shush this works
