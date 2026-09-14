@@ -22,26 +22,49 @@ from muxtools.utils.types import TimeScale, TimeScaleT, TimeSourceT
 from wakepy import keep
 
 from ..utils.source import src_file
-from ..utils.audio import audio_async_render
 
 __all__ = ["do_audio", "encode_audio", "export_audionode"]
 
 
-def export_audionode(node: vs.AudioNode, outfile: PathLike | None = None) -> Path:
+@keep.running
+def export_audionode(node: vs.AudioNode, outfile: PathLike | None = None, w64: bool | None = None) -> Path:
     """
     Exports an audionode to a wav/w64 file.
 
     :param node:            Your audionode
     :param outfile:         Custom output path if any
+    :param w64:             Force Wave64 output or auto-detect based on file size/extension
 
     :return:                Returns path
     """
-    if not outfile:
-        outfile = uniquify_path(Path(get_workdir(), "exported.wav"))
+    from vstools.functions.render.progress import get_render_progress
 
-    outfile = ensure_path(outfile, export_audionode)
-    with open(outfile, "wb") as bf:
-        audio_async_render(node, bf)
+    if outfile is not None:
+        outfile = ensure_path(outfile, export_audionode)
+
+    if w64 is None:
+        if outfile is not None and outfile.suffix.lower() == ".w64":
+            w64 = True
+        else:
+            # Check if the resulting file size is > to 4GiB
+            # https://github.com/vapoursynth/vapoursynth/blob/5b2d5562726a91d9a75441cc4728a90e6c9f4f27/src/common/wave.cpp#L142-L150
+            bytes_per_sample = (node.bits_per_sample + 7) // 8
+            data_size = node.num_samples * node.num_channels * bytes_per_sample
+            # https://github.com/vapoursynth/vapoursynth/blob/5b2d5562726a91d9a75441cc4728a90e6c9f4f27/src/common/wave.cpp#L87
+            w64 = (data_size + 68) > 0xFFFFFFFE
+
+    ext = ".w64" if w64 else ".wav"
+
+    if outfile is None:
+        outfile = ensure_path(uniquify_path(Path(get_workdir(), f"exported{ext}")), export_audionode)
+    elif w64 and outfile.suffix.lower() == ".wav":
+        outfile = outfile.with_suffix(".w64")
+    elif not outfile.suffix:
+        outfile = outfile.with_suffix(ext)
+
+    with outfile.open("wb") as bf, get_render_progress() as progress:
+        task = progress.add_task("Rendering audio...", total=node.num_frames)
+        node.output(bf, wav=not w64, w64=w64, progress_update=lambda curr, total: progress.update(task, total=total, completed=curr))
     return outfile
 
 
