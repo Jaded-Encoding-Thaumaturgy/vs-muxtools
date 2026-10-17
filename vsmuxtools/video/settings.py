@@ -226,24 +226,20 @@ def settings_builder_x264(
 
 
 def settings_builder_5fish_svt_av1_high_quality(
-    preset: int = 0,
-    crf: float = 13.00,
-    lineart_psy_bias: int = 5,
+    preset: int = 2,
+    crf: float = 11.00,
+    lineart_psy_bias: int = 6,
     texture_psy_bias: int = 4,
-    satd_bias: float | None = 0.50,
     progress: int | None = 2,
     **kwargs,
 ) -> dict[str, Any]:
     """
-    This is a settings_builder for 5fish/SVT-AV1.
-    These parameters correspond to early July 2026 version of the encoder.
+    This is a settings_builder for 5fish/SVT-AV1 v2.3.261005 or later v2.3 versions.
 
-    Source Repository & Builds: https://github.com/5fish/svt-av1 .
+    Source Repository & Builds: <https://github.com/5fish/svt-av1>.
 
-    You can denoise or regrain as normal before sending to the encoder.
-    However, utilising the film grain layer instead of regrain will be much more efficient.
-
-    This settings_builder uses `--preset 0`. If it is too slow, you can switch to `--preset 2` without losing much quality.
+    You can denoise or regrain as normal before sending to the encoder.\n
+    However, utilizing the film grain layer and, particularly on a clean source, stabilizing the video would be much more efficient.
 
     If you want to adjust the parameters for your source, check the Usage section in `README.md` in encoder's GitHub repository.
 
@@ -265,20 +261,30 @@ def settings_builder_5fish_svt_av1_high_quality(
 
 def settings_builder_5fish_svt_av1_mini(
     preset: int = 2,
-    crf: float = 24.00,
+    crf: float = 21.00,
     lineart_psy_bias: int = 3,
     texture_psy_bias: int = 3,
     progress: int | None = 2,
     **kwargs,
 ) -> dict[str, Any]:
     """
-    This is a settings_builder for 5fish/SVT-AV1.
-    These parameters correspond to early July 2026 version of the encoder.
+    This is a settings_builder for 5fish/SVT-AV1 v2.3.261005 or later v2.3 versions.
 
-    Source Repository & Builds: https://github.com/5fish/svt-av1 .
+    Source Repository & Builds: <https://github.com/5fish/svt-av1>.
 
-    Compared to the `settings_builder_5fish_svt_av1_mini_high_dlf`, this version works best with clean sources without regrain.
-    Ideally you want to remove temporal noise as much as you can without damaging texture before sending to the encoder.
+    This method is best suited for clean sources. For sources with noise or with regrain, use `settings_builder_5fish_svt_av1_mini_high_dlf`.
+
+    On a clean source, the recommended method is to completely stabilize the video so that it doesn't have any noise, including debanding and dithering noise.\n
+    When completely stabilized, on a typical clean source, you should be able to hit 2 Mbps or less over the whole source at `--crf 21.00`.\n
+    Example filtering:
+    ```py
+    from vsdeband import pfdeband, placebo_deband
+    from vsdenoise import Prefilter, mc_degrain, MVToolsPreset
+    from vstools import DitherType, finalize_clip
+    debanded = pfdeband(source, debander=placebo_deband, thr=2.0)
+    stabilized = mc_degrain(debanded, mfilter=source, prefilter=Prefilter.DFTTEST(source), preset=MVToolsPreset.HQ_COHERENCE, thsad=40, tr=4)
+    final = finalize_clip(stabilized, dither_type=DitherType.NONE)
+    ```
 
     If you want to adjust the parameters for your source, check the Usage section in `README.md` in encoder's GitHub repository.
 
@@ -300,7 +306,7 @@ def settings_builder_5fish_svt_av1_mini(
 
 def settings_builder_5fish_svt_av1_mini_high_dlf(
     preset: int = 2,
-    crf: float = 27.00,
+    crf: float = 26.00,
     lineart_psy_bias: int = 3,
     texture_psy_bias: int = 5,
     dlf_bias_max_dlf: str | None = "24,4",
@@ -310,15 +316,14 @@ def settings_builder_5fish_svt_av1_mini_high_dlf(
     **kwargs,
 ) -> dict[str, Any]:
     """
-    This is a settings_builder for 5fish/SVT-AV1.
-    These parameters correspond to early July 2026 version of the encoder.
+    This is a settings_builder for 5fish/SVT-AV1 v2.3.261005 or later v2.3 versions.
 
-    Source Repository & Builds: https://github.com/5fish/svt-av1 .
+    Source Repository & Builds: <https://github.com/5fish/svt-av1>.
 
-    Compared to the `settings_builder_5fish_svt_av1_mini`, this high DLF version is suitable for very noisy or regrained sources.
-    Denoise is not preferred even for very noisy sources.
+    Compared to the `settings_builder_5fish_svt_av1_mini`, this high DLF version is suitable for very noisy or regrained sources.\n
+    Denoise is not preferred even for very noisy sources as denoise seems to commonly result in very bad detail retention.
 
-    If you want to adjust the parameters for your source, check the Usage section in `README.md` in encoder's GitHub repository.
+    If you want to adjust the parameters for your source, check the Usage section in `README.md` in the encoder's GitHub repository.
 
     To use this settings_builder,
     ```py
@@ -346,16 +351,14 @@ def settings_builder_svt_av1_essential(
     **kwargs,
 ) -> dict[str, Any]:
     """
-    This is a settings_builder for SVT-AV1-Essential.
-    These parameters correspond to v4.0.1-Essential.
+    This is a settings_builder for SVT-AV1-Essential v4.0.1-Essential or later versions.
 
-    Repository: https://github.com/nekotrix/SVT-AV1-Essential .
-    Windows build: https://github.com/Akatmks/SVT-AV1-Builds .
-    Linux build: apply patches if available, and build with `Build/linux/build.sh --native --static --release --enable-lto --enable-pgo` with clang highly recommended over gcc.
+    Repository: <https://github.com/nekotrix/SVT-AV1-Essential>.\n
+    Builds: <https://github.com/Akatmks/SVT-AV1-Builds/releases?q=SVT-AV1-Essential>.
 
-    For higer quality mini and non mini encodes, check out `settings_builder_5fish_svt_av1_psy`.
+    For higher quality mini and non mini encodes, check out `settings_builder_5fish_svt_av1_psy`.
 
-    For better explanations of parameters, check the `Docs/Parameters.md` file in encoder's GitHub.
+    For better explanations of parameters, check the `Docs/Parameters.md` file in the encoder's GitHub repository.
 
     To use this settings_builder,
     ```py
@@ -363,9 +366,9 @@ def settings_builder_svt_av1_essential(
     mini = SVTAV1(**settings).encode(final)
     ```
 
-    :param speed:           Adjust the speed.
+    :param speed:           Adjust the speed.\n
                             `slower` (`--preset 2`) is the recommended starting point. `slow` (`--preset 4`) is faster.
-    :param quality:         Adjust the quality.
+    :param quality:         Adjust the quality.\n
                             `medium` (`--crf 30`) is the recommended starting point. `high` (`--crf 25`) is higher, and `low` (`--crf 35`), or `lower` (`--crf 40`) is lower.
     """
     args = dict[str, Any]()
