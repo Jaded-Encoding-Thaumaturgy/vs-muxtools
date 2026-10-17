@@ -117,7 +117,7 @@ class src_file(VSObject):
     preview_sourcefilter: SourceFilter | None
     sourcefilter: SourceFilter
     idx: Callable[[str], vs.VideoNode] | None = None
-    idx_args: dict[str, Any] = {}
+    idx_args: dict[str, Any]
 
     def __init__(
         self,
@@ -165,20 +165,20 @@ class src_file(VSObject):
             indexed = self.__call_indexer(self.file)
         cut = indexed
         if self.trim:
-            self.trim = list(self.trim)
-            if self.trim[0] is None:
-                self.trim[0] = 0
-            if self.trim[1] is None or self.trim[1] == 0:
-                if self.trim[0] < 0:
-                    cut = (indexed[0] * abs(self.trim[0])) + indexed
+            start, end = self.trim
+            if start is None:
+                start = 0
+            if end is None or end == 0:
+                if start < 0:
+                    cut = (indexed[0] * abs(start)) + indexed
                 else:
-                    cut = indexed[self.trim[0] :]
+                    cut = indexed[start:]
             else:
-                if self.trim[0] < 0:
-                    cut = (indexed[0] * abs(self.trim[0])) + indexed[: self.trim[1]]
+                if start < 0:
+                    cut = (indexed[0] * abs(start)) + indexed[:end]
                 else:
-                    cut = indexed[self.trim[0] : self.trim[1]]
-            self.trim = tuple(self.trim)
+                    cut = indexed[start:end]
+            self.trim = (start, end)
 
         if not isinstance(self.file, list) and self.file.suffix.lower() == ".dgi":
             if self.file.with_suffix(".m2ts").exists():

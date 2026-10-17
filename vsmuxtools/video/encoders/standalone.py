@@ -427,14 +427,14 @@ class SVTAV1(VideoEncoder):
         # props
         # fmt:off
         args.extend([
-            "--fps-num", clip_props.get("fps_num"),
-            "--fps-denom", clip_props.get("fps_den"),
-            "--input-depth", clip_props.get("depth"),
+            "--fps-num", clip_props["fps_num"],
+            "--fps-denom", clip_props["fps_den"],
+            "--input-depth", clip_props["depth"],
             "--chroma-sample-position", cloc,
-            "--color-primaries", clip_props.get("primaries"),
-            "--transfer-characteristics", clip_props.get("transfer"),
-            "--matrix-coefficients", clip_props.get("colormatrix"),
-            "--color-range", clip_props.get("range")
+            "--color-primaries", clip_props["primaries"],
+            "--transfer-characteristics", clip_props["transfer"],
+            "--matrix-coefficients", clip_props["colormatrix"],
+            "--color-range", clip_props["range"]
         ])
         # fmt: on
 
