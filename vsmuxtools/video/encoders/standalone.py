@@ -342,17 +342,17 @@ class SVTAV1(VideoEncoder):
             if self.sd_cache is True:
                 sd_clip_path = get_prop(sd_clip, "IdxFilePath", t=str, default=None)
                 if sd_clip_path:
-                    cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{Path(sd_clip_path).name}.json"
+                    cache = get_workdir() / f"svt_av1_sd_cache-{Path(sd_clip_path).name}.json"
                 else:
                     warn(
                         "Failed to identify source filename; using default cache filename. Pass a unique ID or string to 'sd_cache' to prevent collisions during batch encodes.",
                         self,
                     )
-                    cache = get_workdir() / ".vsjet" / "vsmuxtools" / "svt_av1_sd_cache.json"
+                    cache = get_workdir() / "svt_av1_sd_cache.json"
             elif self.sd_cache is False:
                 cache = None
             else:
-                cache = get_workdir() / ".vsjet" / "vsmuxtools" / f"svt_av1_sd_cache-{self.sd_cache}.json"
+                cache = get_workdir() / f"svt_av1_sd_cache-{self.sd_cache}.json"
 
             try:
                 assert cache is not None
