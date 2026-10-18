@@ -179,8 +179,12 @@ class src_file(VSObject):
     def __index_clip(self):
         if isinstance(self.file, list):
             indexed = core.std.Splice([self.__call_indexer(f) for f in self.file])
+            if not self.idx:
+                indexed = indexed.std.SetFrameProps(IdxFilePath=[str(f) for f in self.file])
         else:
             indexed = self.__call_indexer(self.file)
+            if not self.idx:
+                indexed = indexed.std.SetFrameProps(IdxFilePath=str(self.file))
         parts = list[vs.VideoNode]()
         for start, end in _resolve_trims(self.trim, indexed.num_frames, self):
             part = indexed[max(0, start) : end]
@@ -428,19 +432,19 @@ def _call_sourcefilter(fileIn: Path, sourcefilter: SourceFilter, **kwargs) -> vs
             show_progress = kwargs.pop("showprogress", True)
 
             info(f"Indexing '{fileIn.name}' using bestsource.", src)
-            return core.lazy.bs.VideoSource(filePath, showprogress=show_progress, **kwargs)
+            return core.lazy.bs.VideoSource(filePath, showprogress=show_progress, **kwargs).std.SetFrameProps(Idx="BestSource")
         case SourceFilter.LSMASH:
             if not hasattr(core, "lsmas"):
                 raise error("LSMASH plugin is not installed!", src)
 
             info(f"Indexing '{fileIn.name}' using LSMASH LWLibavSource.", src)
-            return core.lazy.lsmas.LWLibavSource(filePath, **kwargs)
+            return core.lazy.lsmas.LWLibavSource(filePath, **kwargs).std.SetFrameProps(Idx="LSMASH")
         case SourceFilter.FFMS2:
             if not hasattr(core, "ffms2"):
                 raise error("FFMS2 plugin is not installed!", src)
 
             info(f"Indexing '{fileIn.name}' using FFMS2.", src)
-            return core.lazy.ffms2.Source(filePath, **kwargs)
+            return core.lazy.ffms2.Source(filePath, **kwargs).std.SetFrameProps(Idx="FFMS2")
         case _:
             raise error(f"Invalid sourcefilter passed! ({sourcefilter})", src)
 
