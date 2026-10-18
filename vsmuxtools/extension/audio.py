@@ -87,22 +87,22 @@ def do_audio(
 
     :param fileIn:          Input file or src_file/FileInfo or AudioNode
     :param track:           Audio track number
-    :param trims:           Frame ranges to trim and/or combine, e.g. (24, -24) or [(24, 500), (700, 900)]
-                            If your passed src_file has a trim it will use it. Any other trims passed here will overwrite it.
+    :param trims:           Frame ranges to trim and/or combine, e.g. (24, -24) or [(24, 500), (700, 900)]\n
+                            None inherits the src_file's trims; [] disables trimming. Explicit trims override the source's trims.
     :param timesource:      The source of timestamps/timecodes. For details check the docstring on the type.\n
                             Will be taken from input if it's a src_file and assume the usual 24 if not.
 
     :param timescale:       Unit of time (in seconds) in terms of which frame timestamps are represented.\n
                             For details check the docstring on the type.
 
-    :param num_frames:      Total number of frames, used for negative numbers in trims
+    :param num_frames:      Total number of frames, used for negative numbers in trims\n
                             Will be taken from input if it's a src_file
 
     :param extractor:       Tool used to extract the audio (Will default to None if an AudioNode gets passed, otherwise FFMpeg)
-    :param trimmer:         Tool used to trim the audio
+    :param trimmer:         Tool used to trim the audio\n
                             AutoTrimmer means it will choose ffmpeg for lossy and Sox for lossless
 
-    :param encoder:         Tool used to encode the audio
+    :param encoder:         Tool used to encode the audio\n
                             AutoEncoder means it won't reencode lossy and choose opus otherwise
 
     :param quiet:           Whether the tool output should be visible
@@ -121,7 +121,7 @@ def do_audio(
         extractor = None
         fileIn = export_audionode(fileIn)
     elif isinstance(fileIn, src_file):
-        if not trims:
+        if trims is None:
             trims = fileIn.trim
 
         clip = fileIn.src
@@ -133,6 +133,9 @@ def do_audio(
 
     if timesource is None:
         timesource = Fraction(24000, 1001)
+
+    if isinstance(trims, list):
+        trims = trims.copy()
 
     # TODO: Check why this typecheck fails lol
     return mt_audio(fileIn, track, trims, timesource, timescale, num_frames, extractor, trimmer, encoder, quiet, output)  # type: ignore

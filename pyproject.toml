@@ -95,3 +95,6 @@ preset = "default"
 
 [tool.pyrefly.errors]
 redefinition = "ignore"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

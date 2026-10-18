@@ -19,6 +19,7 @@ class Chapters(Ch):
         Convenience class for chapters
 
         :param chapter_source:      Input either src_file/FileInfo, txt with ogm chapters, xml or (a list of) self defined chapters.
+                                    A src_file may have at most one trim range.
         :param timesource:          The source of timestamps/timecodes. For details check the docstring on the type.\n
                                     Will be taken from input if it's a src_file and assume the usual 24 if not.
 
@@ -28,14 +29,19 @@ class Chapters(Ch):
         :param _print:              Prints chapters after parsing and after trimming.
         """
         if isinstance(chapter_source, src_file):
+            trim = chapter_source.trim
+            if isinstance(trim, list) and len(trim) > 1:
+                raise error("Cannot currently parse chapters with multiple trim ranges.", self)
+            if isinstance(trim, list):
+                trim = trim[0] if trim else None
             if isinstance(chapter_source.file, list):
                 # I'll make a workaround for this soonish
                 raise error("Cannot currently parse chapters when splicing multiple files.", self)
             clip_fps = Fraction(chapter_source.src.fps_num, chapter_source.src.fps_den)
             self.timestamps = resolve_timesource_and_scale(timesource if timesource else clip_fps, timescale, caller=self)
             self.chapters = parse_chapters_bdmv(chapter_source.file, clip_fps, chapter_source.src_cut.num_frames, _print)
-            if self.chapters and chapter_source.trim:
-                self.trim(chapter_source.trim[0] or 0, chapter_source.trim[1] or 0, chapter_source.src_cut.num_frames)
+            if self.chapters and trim:
+                self.trim(trim[0] or 0, trim[1] or 0, chapter_source.src_cut.num_frames)
                 if _print:
                     print("After trim:")
                     self.print()

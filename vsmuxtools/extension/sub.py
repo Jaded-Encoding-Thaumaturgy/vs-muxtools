@@ -118,17 +118,24 @@ class SubFilePGS(MTSubFilePGS):
         """
         Extract a PGS subtitle track from a file using ffmpeg.\n
 
-        :param fileIn:          The input file to extract from.
+        :param fileIn:          The input file to extract from. A src_file may have at most one trim range.
         :param track:           The track number to extract.
         :param preserve_delay:  If True, the container delay will be preserved.
         :param quiet:           If True, suppresses ffmpeg output.
         :return:                An instance of SubFilePGS containing the extracted subtitle.
         """
         f = fileIn
+        trim = fileIn.trim if isinstance(fileIn, src_file) else None
+        if isinstance(trim, list) and len(trim) > 1:
+            raise error("Cannot currently extract PGS subtitles with multiple trim ranges.", cls.__name__)
+        if isinstance(trim, list):
+            trim = trim[0] if trim else None
+        if trim and trim[1] == 0:
+            raise error("Trim ranges cannot end with 0; use None for an open end.", cls.__name__)
         if isinstance(f, src_file):
             if isinstance(f.file, list):
                 # I'll make a workaround for this soonish
-                raise error("Cannot currently parse chapters when splicing multiple files.", cls.__name__)
+                raise error("Cannot currently extract PGS subtitles when splicing multiple files.", cls.__name__)
             f = f.file
         new = super().extract_from(
             f,
@@ -136,10 +143,11 @@ class SubFilePGS(MTSubFilePGS):
             preserve_delay=preserve_delay,
             quiet=quiet,
         )
-        if isinstance(fileIn, src_file) and fileIn.trim:
-            if fileIn.trim[0]:
-                debug(f"Shifting extracted subtitle by -{fileIn.trim[0]} frames...", cls.__name__)
-                new = new.shift(-fileIn.trim[0], timesource=fileIn.file, quiet=quiet)
-            if fileIn.trim[1]:
+        if isinstance(fileIn, src_file) and trim:
+            start, end = trim
+            if start:
+                debug(f"Shifting extracted subtitle by {-start} frames...", cls.__name__)
+                new = new.shift(-start, timesource=fileIn.file, quiet=quiet)
+            if end:
                 warn("Trimming is currently not supported for PGS subtitles.", cls.__name__)
         return new

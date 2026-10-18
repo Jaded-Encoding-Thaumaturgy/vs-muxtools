@@ -35,6 +35,7 @@ from muxtools import (
 )
 
 from muxtools.audio.preprocess import classproperty
+from muxtools.audio.audioutils import sanitize_trims
 
 
 __all__ = ["src_file", "SRC_FILE", "FileInfo", "src", "frames_to_samples", "f2s", "SourceFilter"]
@@ -44,6 +45,21 @@ PREVIEWER_MODULES = ["__vspreview__", "__vsview__"]
 
 def is_previewing() -> bool:
     return any([bool(module) for module in [sys.modules.get(name) for name in PREVIEWER_MODULES]])
+
+
+def _resolve_trims(trims: Trim | list[Trim] | None, num_frames: int, caller: Any) -> list[tuple[int, int | None]]:
+    trims = sanitize_trims(trims.copy() if isinstance(trims, list) else trims, num_frames, allow_negative_start=True, caller=caller)
+    resolved = list[tuple[int, int | None]]()
+    for index, (start, end) in enumerate(trims):
+        start = min(start or 0, num_frames)
+        if index > 0:
+            start = max(0, start)
+        if end is not None:
+            end = max(0, min(num_frames, end))
+        if max(0, start) >= (num_frames if end is None else end):
+            raise error(f"Trim range {(start, end)} is empty or reversed.", caller)
+        resolved.append((start, end))
+    return resolved
 
 
 def _get_mpls_clip_id(play_item: py_mpls.play_item.PlayItem, angle: int) -> str:
@@ -113,7 +129,7 @@ class SourceFilter(IntEnum):
 
 class src_file(VSObject):
     file: Path | list[Path]
-    trim: Trim | None = None
+    trim: Trim | list[Trim] | None = None
     preview_sourcefilter: SourceFilter | None
     sourcefilter: SourceFilter
     idx: Callable[[str], vs.VideoNode] | None = None
@@ -122,7 +138,7 @@ class src_file(VSObject):
     def __init__(
         self,
         file: PathLike | GlobSearch | Sequence[PathLike],
-        trim: Trim | None = None,
+        trim: Trim | list[Trim] | None = None,
         preview_sourcefilter: SourceFilter | None = SourceFilter.FFMS2,
         sourcefilter: SourceFilter = SourceFilter.BESTSOURCE,
         idx: Callable[[str], vs.VideoNode] | None = None,
@@ -132,7 +148,9 @@ class src_file(VSObject):
         Custom `FileInfo` kind of thing for convenience
 
         :param file:                    Either a string based filepath or a Path object
-        :param trim:                    Can be a single trim or a sequence of trims.
+        :param trim:                    A single trim or ordered list, e.g. [(24, 500), (700, None)]. Ends are exclusive.\n
+                                        A negative first start pads frozen frames/silence; later negative starts count from the source end.\n
+                                        None ends keep the remainder; 0 is invalid. Ranges apply after concatenating input files.
         :param preview_sourcefilter:    Source filter to be used when previewing using vspreview.
                                         `None` will make it fall back to `sourcefilter`.
         :param sourcefilter:            Source filter to be used otherwise.
@@ -163,22 +181,13 @@ class src_file(VSObject):
             indexed = core.std.Splice([self.__call_indexer(f) for f in self.file])
         else:
             indexed = self.__call_indexer(self.file)
-        cut = indexed
-        if self.trim:
-            start, end = self.trim
-            if start is None:
-                start = 0
-            if end is None or end == 0:
-                if start < 0:
-                    cut = (indexed[0] * abs(start)) + indexed
-                else:
-                    cut = indexed[start:]
-            else:
-                if start < 0:
-                    cut = (indexed[0] * abs(start)) + indexed[:end]
-                else:
-                    cut = indexed[start:end]
-            self.trim = (start, end)
+        parts = list[vs.VideoNode]()
+        for start, end in _resolve_trims(self.trim, indexed.num_frames, self):
+            part = indexed[max(0, start) : end]
+            if start < 0:
+                part = (indexed[0] * -start) + part
+            parts.append(part)
+        cut = core.std.Splice(parts) if parts else indexed
 
         if not isinstance(self.file, list) and self.file.suffix.lower() == ".dgi":
             if self.file.with_suffix(".m2ts").exists():
@@ -271,15 +280,26 @@ class src_file(VSObject):
 
     def get_audio_trimmed(self, track: int = 0, **kwargs) -> vs.AudioNode:
         """
-        Gets the indexed audio track with the trim specified in the src_file.
+        Applies the source's ordered frame ranges to the indexed audio, padding a negative first start with silence.
+        Requires constant video FPS when trimming. Open ends retain the audio tail; explicit ends use available samples.
         """
         node = self.get_audio(track, **kwargs)
-        if self.trim:
-            if self.trim[1] is None or self.trim[1] == 0:
-                node = node[f2s(self.trim[0], node, self.src) :]
-            else:
-                node = node[f2s(self.trim[0], node, self.src) : f2s(self.trim[1], node, self.src)]
-        return node
+        if self.trim is None or self.trim == []:
+            return node
+        clip = self.src
+        if clip.fps_num <= 0 or clip.fps_den <= 0:
+            raise error("Audio trimming requires a constant, positive video frame rate.", self)
+        parts = list[vs.AudioNode]()
+        for start, end in _resolve_trims(self.trim, clip.num_frames, self):
+            first = f2s(max(0, start), node, clip)
+            last = node.num_samples if end is None else min(node.num_samples, f2s(end, node, clip))
+            if first >= last:
+                raise error(f"Trim range {(start, end)} contains no available audio samples.", self)
+            part = node[first:last]
+            if start < 0 and (padding := f2s(-start, node, clip)):
+                part = core.std.BlankAudio(node, length=padding) + part
+            parts.append(part)
+        return core.std.AudioSplice(parts)
 
     def __vs_del__(self, core_id: int) -> None:
         if not TYPE_CHECKING:
@@ -300,7 +320,7 @@ class src_file(VSObject):
         playlist: int = 0,
         entries: int | list[int] | Trim | None = None,
         angle: int = 0,
-        trim: Trim | None = None,
+        trim: Trim | list[Trim] | None = None,
         preview_sourcefilter: SourceFilter | None = SourceFilter.AUTO,
         sourcefilter: SourceFilter = SourceFilter.BESTSOURCE,
         idx: Callable[[str], vs.VideoNode] | None = None,
@@ -439,7 +459,7 @@ def frames_to_samples(frame: int | None, sample_rate: vs.AudioNode | int = 48000
         return 0
     sample_rate = sample_rate.sample_rate if isinstance(sample_rate, vs.AudioNode) else sample_rate
     fps = Fraction(fps.fps_num, fps.fps_den) if isinstance(fps, vs.VideoNode) else fps
-    return int(sample_rate * (fps.denominator / fps.numerator) * frame)
+    return int(Fraction(sample_rate * frame, 1) / fps)
 
 
 f2s = frames_to_samples

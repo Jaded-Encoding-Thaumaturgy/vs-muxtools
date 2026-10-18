@@ -4,6 +4,7 @@ _binaries/
 .vspreview/
 config.ini
 /test.py
+context/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
