@@ -1,6 +1,7 @@
 # Specific to this package
 _workdir/
 _binaries/
+.muxtools/
 .vspreview/
 config.ini
 /test.py

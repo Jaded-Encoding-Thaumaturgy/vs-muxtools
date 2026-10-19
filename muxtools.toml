@@ -1,0 +1,13 @@
+[muxtools]
+show_name = "Example"
+clean_work_dirs = true
+out_dir = "premux"
+out_name = "$show$ - $ep$ (premux)"
+mkv_title_naming = "$show$ - $ep$"
+debug = true
+error_on_danger = false
+
+# Pinned versions are used for the tests, both in CI and locally
+[muxtools.binaries]
+prefer = "local"
+packages = ["ffmpeg==9.0.2-r2", "flac==1.5.0.post2", "mkvtoolnix==102.0", "opus-tools==0.2-libopus-1.6.1+1", "x265==4.3.post1", "svtav1-essential==4.0.1", "dovi-tool==2.3.4", "hdr10plus-tool==1.7.2"]

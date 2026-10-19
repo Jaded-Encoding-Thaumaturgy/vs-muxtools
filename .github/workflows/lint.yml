@@ -1,6 +1,7 @@
 name: Lint
 on:
   push:
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -37,7 +38,7 @@ jobs:
         run: uv run --no-sync ruff format --check ./vsmuxtools/
 
       - name: Post webhook for failure
-        if: failure()
+        if: failure() && github.event_name != 'pull_request'
         uses: Jaded-Encoding-Thaumaturgy/discord-failure-notifier@v1
         with:
           webhook-url: ${{ secrets.WEBHOOK_URL }}

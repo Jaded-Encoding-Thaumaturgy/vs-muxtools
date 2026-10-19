@@ -1,0 +1,42 @@
+name: Run tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      PYTHON_VER: "3.14"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Setup uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          python-version: ${{ env.PYTHON_VER }}
+          enable-cache: true
+
+      - name: Cache project binaries
+        uses: actions/cache@v6.1.0
+        with:
+          path: .muxtools/bins
+          key: ${{ runner.os }}-${{ runner.arch }}-binaries-${{ hashFiles('muxtools.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-binaries-
+
+      - name: Sync project binaries
+        run: uv run muxtools binaries sync
+
+      - name: Run tests (Python ${{ env.PYTHON_VER }})
+        run: uv run pytest tests
+
+      - name: Post webhook for failure
+        if: failure() && github.event_name != 'pull_request'
+        uses: Jaded-Encoding-Thaumaturgy/discord-failure-notifier@v1
+        with:
+          webhook-url: ${{ secrets.WEBHOOK_URL }}
