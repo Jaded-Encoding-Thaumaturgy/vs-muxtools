@@ -1,8 +1,8 @@
 import os
 import re
-import subprocess
 from pathlib import Path
 from muxtools import ensure_path_exists, PathLike, get_executable, run_commandline, error, info
+from muxtools.utils.env import communicate_stdout
 
 
 def parse_keyframes(file: PathLike) -> list[int]:
@@ -13,21 +13,39 @@ def parse_keyframes(file: PathLike) -> list[int]:
     ffmpeg = get_executable("ffmpeg")
     out_var = "NUL" if os.name == "nt" else "/dev/null"
     args = [ffmpeg, "-hide_banner", "-i", str(file), "-map", "0:v:0", "-filter:v", "showinfo", "-f", "null", out_var]
-    out = subprocess.run(args, capture_output=True, text=True)
-    if out.returncode != 0:
-        error("Failed to parse video keyframes using ffmpeg!", parse_keyframes)
-        print(out.stderr)
-        print(out.stdout)
-        out.check_returncode()
+    code, output = communicate_stdout(args)
+    if code:
+        raise error(f"Failed to parse video keyframes using ffmpeg:\n{output}", parse_keyframes)
 
-    for line in out.stderr.splitlines():
+    for line in output.splitlines():
         if "showinfo" in line:
             matches = re.findall(pattern, line.strip())
             if matches:
                 match = matches[0]
-                if match[1] == "I":
+                iskey = re.search(r"\biskey:\s*(\d+)", line)
+                if (iskey is not None and iskey[1] == "1") or (iskey is None and match[1] == "I"):
                     frames.append(int(match[0]))
     return frames
+
+
+def get_resume_parts(output: Path) -> tuple[list[Path], list[int], int]:
+    """Collect matching parts and their retained lengths, excluding an incomplete final part."""
+    pattern = output.with_stem(output.stem + "_part_???")
+    candidates = sorted(pattern.parent.glob(pattern.name))
+    parts, keyframes = [], []
+    for index, part in enumerate(candidates):
+        if part.stem != f"{output.stem}_part_{index:03d}":
+            raise error(f"Missing resume part {index:03d} before {part.name}.", get_resume_parts)
+        try:
+            keyframe = parse_keyframes(part)[-1]
+        except Exception:
+            keyframe = 0
+        if keyframe:
+            parts.append(part)
+            keyframes.append(keyframe)
+        elif index != len(candidates) - 1:
+            raise error(f"Incomplete resume part {part.name} precedes another part.", get_resume_parts)
+    return parts, keyframes, len(parts)
 
 
 def merge_parts(last: Path, original_out: Path, keyframes: list[int], parts: list[Path], quiet: bool = True):
@@ -38,7 +56,7 @@ def merge_parts(last: Path, original_out: Path, keyframes: list[int], parts: lis
     _to_delete = set[Path]()
     mkv_parts = list[Path]()
     # Remux and split existing parts
-    for kf, part in zip(keyframes, parts):
+    for kf, part in zip(keyframes, parts, strict=True):
         as_mkv = part.with_suffix(".mkv").resolve()
         args = [mkvmerge, "-o", str(as_mkv), "--split", f"frames:{kf}", str(part.resolve())]
         if run_commandline(args, quiet) > 1:
@@ -51,11 +69,9 @@ def merge_parts(last: Path, original_out: Path, keyframes: list[int], parts: lis
         _to_delete.update([p_mkv001, p_mkv002])
     _to_delete.update(parts)
 
-    if len(mkv_parts) < 1:
+    if not mkv_parts:
+        last.replace(original_out)
         info("Encode finished successfully without requiring other parts")
-        for f in _to_delete:
-            f.unlink(True)
-        last.rename(original_out)
         return
 
     # Remux the last encoded part
@@ -81,7 +97,7 @@ def merge_parts(last: Path, original_out: Path, keyframes: list[int], parts: lis
         first = False
 
     if run_commandline(args, quiet) > 1:
-        raise error("Failed to remux last part", merge_parts)
+        raise error("Failed to merge remuxed parts", merge_parts)
 
     if original_out.suffix.lower() == ".mkv":
         info("Merged encode parts successfully. Final output will remain muxed as MKV.")

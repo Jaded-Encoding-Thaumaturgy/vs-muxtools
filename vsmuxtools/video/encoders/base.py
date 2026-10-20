@@ -8,7 +8,7 @@ from muxtools.utils.dataclass import CLIKwargs
 from wakepy import keep
 
 from .types import Zone
-from ..resumable import merge_parts, parse_keyframes
+from ..resumable import merge_parts, get_resume_parts
 from ..settings import file_or_default, sb264, sb265
 from ..clip_metadata import fill_props, props_args, props_dict
 from vsmuxtools.utils.source import generate_qp_file, src_file
@@ -155,22 +155,9 @@ class SupportsQP(VideoEncoder):
             self._update_settings(clip, self.x265)
             return VideoFile(self._encode_clip(clip, out, self._get_qpfile()))
 
-        pattern = out.with_stem(out.stem + "_part_???")
-        parts = sorted(pattern.parent.glob(pattern.name))
+        parts, keyframes, next_part = get_resume_parts(out)
         info(f"Found {len(parts)} part{'s' if len(parts) != 1 else ''} for this encode")
-
-        keyframes = list[int]()
-        for i, p in enumerate(parts):
-            try:
-                info(f"Parsing keyframes for part {i}...")
-                kf = parse_keyframes(p)[-1]
-                if kf == 0:
-                    del parts[-1]
-                else:
-                    keyframes.append(kf)
-            except:
-                del parts[-1]
-        fout = out.with_stem(out.stem + f"_part_{len(parts):03.0f}")
+        fout = out.with_stem(out.stem + f"_part_{next_part:03d}")
         start_frame = sum(keyframes)
         info(f"Starting encode at frame {start_frame}")
 

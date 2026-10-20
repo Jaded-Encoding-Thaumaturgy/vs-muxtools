@@ -2,7 +2,20 @@ import shlex
 import subprocess
 from vstools import finalize_clip, vs, ChromaLocation, get_prop
 from pathlib import Path
-from muxtools import get_executable, VideoFile, PathLike, make_output, warn, get_setup_attr, ensure_path, info, debug, get_workdir, error
+from dataclasses import field
+from muxtools import (
+    get_executable,
+    VideoFile,
+    PathLike,
+    make_output,
+    warn,
+    get_setup_attr,
+    ensure_path,
+    info,
+    debug,
+    get_workdir,
+    error,
+)
 from muxtools.utils.env import get_binary_version
 from muxtools.utils.dataclass import dataclass, allow_extra
 import re
@@ -18,8 +31,10 @@ from .noise import (
     x265_write_light_noise_table_limited,
 )
 from ..settings import shift_zones, zones_to_args, norm_zones
-from ..clip_metadata import props_dict, SVT_AV1_RANGES
-from ..resumable import merge_parts, parse_keyframes
+from ..clip_metadata import props_dict, SVT_AV1_RANGES, HDR10Metadata
+from ..resumable import merge_parts, get_resume_parts
+from ..hdr import DolbyVision, HDR10Plus
+from ..hdr.integration import hdr_args
 
 from vsmuxtools.utils.source import generate_svt_av1_keyframes, src_file
 
@@ -119,12 +134,18 @@ class x265(SupportsQP):
     :param resumable:           Enable or disable resumable encodes. Very useful for people that have scripts that crash their PC.
                                 None will default to true if open-gop is disabled for this encoder.
     :param csv:                 Either a bool to enable or disable csv logging or a Filepath for said csv.
+    :param dolby_vision:        Prepared or lazily extracted Dolby Vision metadata, aligned to the output timeline.
+    :param hdr10plus:           Prepared or lazily extracted HDR10+ metadata, aligned to the output timeline.
+    :param hdr10:               Preserve available static HDR metadata, supply explicit values, or disable with False.
     """
 
     resumable: bool | None = None
     csv: bool | PathLike = True
     x265 = True
     light_photon_noise: bool = False
+    dolby_vision: DolbyVision | None = field(default=None, kw_only=True)
+    hdr10plus: HDR10Plus | None = field(default=None, kw_only=True)
+    hdr10: HDR10Metadata | bool = field(default=True, kw_only=True)
 
     def __post_init__(self):
         self.executable = get_executable("x265")
@@ -166,6 +187,17 @@ class x265(SupportsQP):
             args.extend(zones_to_args(self.zones, True))
         args.extend(self.get_custom_args() + ["--y4m", "--input", "-"])
 
+        args.extend(
+            hdr_args(
+                clip,
+                args,
+                x265=True,
+                dolby_vision=self.dolby_vision,
+                hdr10plus=self.hdr10plus,
+                hdr10=self.hdr10,
+                start_frame=start_frame,
+            )
+        )
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
         assert process.stdin
@@ -239,7 +271,11 @@ class SVTAV1(VideoEncoder):
     :param quiet_merging:      Suppress the mkvmerge output when combining chunks.
     :param force_webm:         Force WebM output (only applies to SVT-AV1-Essential v4.0.1+).
                                When disabled, the format is chosen based on the output filename, allowing you to output to IVF.
+                               Disabled automatically for Dolby Vision output.
                                Has no effect on other forks.
+    :param dolby_vision:       Dolby Vision metadata aligned to the output timeline. HDR10-compatible AV1 uses Profile 10.1.
+    :param hdr10plus:          HDR10+ metadata aligned to the output timeline.
+    :param hdr10:              Preserve available static HDR metadata, supply explicit values, or disable with False.
     """
 
     sd_clip: vs.VideoNode | src_file | None = None
@@ -248,6 +284,9 @@ class SVTAV1(VideoEncoder):
     resumable: bool = True
     quiet_merging: bool = True
     force_webm: bool = True
+    dolby_vision: DolbyVision | None = field(default=None, kw_only=True)
+    hdr10plus: HDR10Plus | None = field(default=None, kw_only=True)
+    hdr10: HDR10Metadata | bool = field(default=True, kw_only=True)
     _encoder_id: str | None = None
     _settings_builder_id: str | None = None
 
@@ -302,7 +341,12 @@ class SVTAV1(VideoEncoder):
                 raise error("AV1 only supports LEFT and TOPLEFT chroma locations!", self)
 
         ext = "ivf"
-        if self._encoder_id is not None and "Essential" in self._encoder_id:
+        if self.dolby_vision is not None:
+            self.force_webm = False
+            if "Essential" in str(self._encoder_id):
+                warn("Disabling WebM output for Dolby Vision. Mux the IVF output to MKV for Dolby Vision container signaling.", self)
+                self.update_custom_args(webm=0)
+        elif self._encoder_id is not None and "Essential" in self._encoder_id:
             version_match = re.search(r"(\d+)\.(\d+)\.(\d+)", self._encoder_id)
             if version_match and tuple(map(int, version_match.groups())) >= (4, 0, 1):
                 if outfile is not None and not str(outfile).lower().endswith(".ivf"):
@@ -390,22 +434,9 @@ class SVTAV1(VideoEncoder):
         if not self.resumable:
             fout = output
         else:
-            pattern = output.with_stem(output.stem + "_part_???")
-            parts = sorted(pattern.parent.glob(pattern.name))
+            parts, part_keyframes, next_part = get_resume_parts(output)
             info(f"Found {len(parts)} part{'s' if len(parts) != 1 else ''} for this encode")
-
-            for i, p in enumerate(parts):
-                try:
-                    info(f"Parsing keyframes for part {i}...")
-                    kf = parse_keyframes(p)[-1]
-                    if kf == 0:
-                        del parts[-1]
-                    else:
-                        part_keyframes.append(kf)
-                except:
-                    del parts[-1]
-
-            fout = output.with_stem(output.stem + f"_part_{len(parts):03.0f}")
+            fout = output.with_stem(output.stem + f"_part_{next_part:03d}")
             start_frame = sum(part_keyframes)
             info(f"Starting encode at frame {start_frame}")
             clip = clip[start_frame:]
@@ -462,6 +493,17 @@ class SVTAV1(VideoEncoder):
         ])
         # fmt: on
 
+        args.extend(
+            hdr_args(
+                clip,
+                args,
+                x265=False,
+                dolby_vision=self.dolby_vision,
+                hdr10plus=self.hdr10plus,
+                hdr10=self.hdr10,
+                start_frame=start_frame,
+            )
+        )
         process = subprocess.Popen(args, stdin=subprocess.PIPE)
         self.update_process_affinity(process.pid)
         assert process.stdin

@@ -1,0 +1,1 @@
+"""Shared HDR test support."""
