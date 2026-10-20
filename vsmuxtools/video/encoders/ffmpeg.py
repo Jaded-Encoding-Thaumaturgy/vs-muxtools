@@ -17,6 +17,8 @@ class FFV1(FFMpegEncoder):
     Uses ffmpeg to encode a clip to a lossless ffv1 stream.
 
     :param settings:        Can either be a string of your own settings or any of the 3 presets.
+    :param hdr10:           Preserve available static HDR10 metadata, supply explicit HDR10Metadata, or disable with False.
+                            Requires FFmpeg with -mastering_display and -content_light input options.
     """
 
     settings: str | LosslessPreset = LosslessPreset.MIDDLEGROUND
@@ -64,6 +66,8 @@ class ProRes(FFMpegEncoder):
 
     :param profile:         The encoder profile. Basically Quality settings.
                             Chooses the Standard/Default profile for 422 and the '4444' profile for 444 clips if None.
+    :param hdr10:           Preserve available static HDR10 metadata, supply explicit HDR10Metadata, or disable with False.
+                            Requires FFmpeg with -mastering_display and -content_light input options.
     """
 
     profile: ProResProfile | int | None = None

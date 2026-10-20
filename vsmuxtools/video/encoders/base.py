@@ -1,7 +1,7 @@
 import shlex
 from vstools import finalize_clip, vs, get_video_format
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from muxtools import ensure_path_exists, VideoFile, PathLike, make_output, info, warn, error, get_executable
 from muxtools.utils.dataclass import CLIKwargs
@@ -10,7 +10,7 @@ from wakepy import keep
 from .types import Zone
 from ..resumable import merge_parts, get_resume_parts
 from ..settings import file_or_default, sb264, sb265
-from ..clip_metadata import fill_props, props_args, props_dict
+from ..clip_metadata import HDR10Metadata, fill_props, hdr10_args, props_args, props_dict
 from vsmuxtools.utils.source import generate_qp_file, src_file
 
 __all__ = ["VideoEncoder", "FFMpegEncoder", "SupportsQP"]
@@ -38,6 +38,8 @@ class VideoEncoder(CLIKwargs, ABC):
 
 @dataclass
 class FFMpegEncoder(VideoEncoder, ABC):
+    hdr10: HDR10Metadata | bool = field(default=True, kw_only=True)
+
     def __post_init__(self):
         self.executable = get_executable("ffmpeg")
 
@@ -58,16 +60,18 @@ class FFMpegEncoder(VideoEncoder, ABC):
 
     def input_args(self, clip: vs.VideoNode) -> tuple[list[str], list[str]]:
         props = props_dict(clip, True)
+        hdr_options = {"--master-display": "-mastering_display", "--max-cll": "-content_light"}
+        hdr_args = [hdr_options.get(arg, arg) for arg in hdr10_args(clip, x265=True, hdr10=self.hdr10)]
         # fmt: off
         prop_args = [
             "-r", f"{props['fps_num']}/{props['fps_den']}",
             "-color_range", props["range"],
-            "-colorspace", props["colormatrix"],
+            "-colorspace", props["colormatrix"].replace("bt2020ncl", "bt2020nc").replace("bt2020cl", "bt2020c"),
             "-color_primaries", props["primaries"],
-            "-color_trc", props["transfer"],
-            "-chroma_sample_location", props["chromaloc"],
+            "-color_trc", props["transfer"].replace("st2084", "smpte2084"),
+            "-chroma_sample_location", props["chromaloc"].replace("_", ""),
         ]
-        input_arguments = prop_args + ["-f", "yuv4mpegpipe", "-i", "-"] + ["-pix_fmt", self._pixfmt_for_clip(clip)]
+        input_arguments = prop_args + hdr_args + ["-f", "yuv4mpegpipe", "-i", "-"] + ["-pix_fmt", self._pixfmt_for_clip(clip)]
         return input_arguments, prop_args
         # fmt: on
 

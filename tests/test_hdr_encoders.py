@@ -1,12 +1,13 @@
 import json
 import shutil
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from muxtools import mux
-from vsmuxtools import DolbyVision, HDR10Plus, SVTAV1, src_file, x265
+from vsmuxtools import DolbyVision, FFV1, HDR10Plus, SVTAV1, src_file, x265
 
 from .hdr_support.validation import verify_output
 
@@ -23,6 +24,33 @@ def workdir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _source(name: str = "DV-P8-HDR10.mkv") -> src_file:
     return src_file(HDR / name, trim=(0, 8), cachemode=0, showprogress=False)
+
+
+def test_ffv1_preserves_static_hdr10_metadata(tmp_path: Path) -> None:
+    clip = _source("DV-P7-FEL-HDR10.mkv").init_cut(bits=10)[:2]
+    output = FFV1().encode(clip, tmp_path / "hdr10.mkv")
+    data = verify_output(output.file, count=2)
+    stream = data["streams"][0]
+    assert (stream["color_space"], stream["color_transfer"], stream["color_primaries"]) == ("bt2020nc", "smpte2084", "bt2020")
+    assert stream["chroma_location"] == "topleft"
+    side_data = stream["side_data_list"]
+    mastering = next(side for side in side_data if side["side_data_type"] == "Mastering display metadata")
+    expected = {
+        "red_x": "0.68",
+        "red_y": "0.32",
+        "green_x": "0.265",
+        "green_y": "0.69",
+        "blue_x": "0.15",
+        "blue_y": "0.06",
+        "white_point_x": "0.3127",
+        "white_point_y": "0.329",
+        "min_luminance": "0.0005",
+        "max_luminance": "1000",
+    }
+    for key, value in expected.items():
+        assert Fraction(mastering[key]) == Fraction(value)
+    light = next(side for side in side_data if side["side_data_type"] == "Content light level metadata")
+    assert (light["max_content"], light["max_average"]) == (1000, 400)
 
 
 def test_x265_preserves_dovi_and_static_metadata_without_add_props(tmp_path: Path) -> None:
