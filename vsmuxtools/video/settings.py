@@ -146,6 +146,16 @@ def settings_builder_x265(
     append: str = "",
     **kwargs,
 ) -> str:
+    """
+    Simple settings builder for x265 encoding.<br>
+    Defaults are a decently high quality settings for 1080p content.
+
+    For explanations on each parameter, check your x265's `--fullhelp` output or its [documentation](https://x265.readthedocs.io/en/master/cli.html).
+
+
+    Unlike the builders for SVTAV1, this builder returns a String that is supposed to be passed to the encoders `settings` parameter.<br>
+    However, every encoder class can still take arbitrary kwargs for custom args. See [Dynamic Dataclasses](https://muxtools.vodes.pw/guide/dynamic-dataclasses/).
+    """
     # Simple insert values
     settings = f" --preset {preset} --crf {crf} --bframes {bframes} --ref {ref} --rc-lookahead {rc_lookahead} --subme {subme} --me {me}"
     settings += f" --aq-mode {aq_mode} --aq-strength {aq_strength} --qcomp {qcomp} --cbqpoffs {chroma_qpoffsets} --crqpoffs {chroma_qpoffsets}"
@@ -198,6 +208,16 @@ def settings_builder_x264(
     append: str = "",
     **kwargs,
 ) -> str:
+    """
+    Simple settings builder for x264 encoding.<br>
+    Defaults are a decently high quality settings for 1080p content.
+
+    For explanations on each parameter, check your x264's `--fullhelp` output.
+
+
+    Unlike the builders for SVTAV1, this builder returns a String that is supposed to be passed to the encoders `settings` parameter.<br>
+    However, every encoder class can still take arbitrary kwargs for custom args. See [Dynamic Dataclasses](https://muxtools.vodes.pw/guide/dynamic-dataclasses/).
+    """
     # Simple insert values
     settings = f" --preset {preset} --crf {crf} --bframes {bframes} --ref {ref} --rc-lookahead {rc_lookahead} --me {me} --merange {merange}"
     settings += f" --aq-mode {aq_mode} --aq-strength {aq_strength} --qcomp {qcomp}"
@@ -238,7 +258,7 @@ def settings_builder_5fish_svt_av1_high_quality(
 
     Source Repository & Builds: <https://github.com/5fish/svt-av1>.
 
-    You can denoise or regrain as normal before sending to the encoder.\n
+    You can denoise or regrain as normal before sending to the encoder.<br>
     However, utilizing the film grain layer and, particularly on a clean source, stabilizing the video would be much more efficient.
 
     If you want to adjust the parameters for your source, check the Usage section in `README.md` in encoder's GitHub repository.
@@ -274,8 +294,8 @@ def settings_builder_5fish_svt_av1_mini(
 
     This method is best suited for clean sources. For sources with noise or with regrain, use `settings_builder_5fish_svt_av1_mini_high_dlf`.
 
-    On a clean source, the recommended method is to completely stabilize the video so that it doesn't have any noise, including debanding and dithering noise.\n
-    When completely stabilized, on a typical clean source, you should be able to hit 2 Mbps or less over the whole source at `--crf 21.00`.\n
+    On a clean source, the recommended method is to completely stabilize the video so that it doesn't have any noise, including debanding and dithering noise.<br>
+    When completely stabilized, on a typical clean source, you should be able to hit 2 Mbps or less over the whole source at `--crf 21.00`.<br>
     Example filtering:
     ```py
     from vsdeband import pfdeband, placebo_deband
@@ -320,7 +340,7 @@ def settings_builder_5fish_svt_av1_mini_high_dlf(
 
     Source Repository & Builds: <https://github.com/5fish/svt-av1>.
 
-    Compared to the `settings_builder_5fish_svt_av1_mini`, this high DLF version is suitable for very noisy or regrained sources.\n
+    Compared to the `settings_builder_5fish_svt_av1_mini`, this high DLF version is suitable for very noisy or regrained sources.<br>
     Denoise is not preferred even for very noisy sources as denoise seems to commonly result in very bad detail retention.
 
     If you want to adjust the parameters for your source, check the Usage section in `README.md` in the encoder's GitHub repository.
@@ -353,7 +373,7 @@ def settings_builder_svt_av1_essential(
     """
     This is a settings_builder for SVT-AV1-Essential v4.0.1-Essential or later versions.
 
-    Repository: <https://github.com/nekotrix/SVT-AV1-Essential>.\n
+    Repository: <https://github.com/nekotrix/SVT-AV1-Essential>.<br>
     Builds: <https://github.com/Akatmks/SVT-AV1-Builds/releases?q=SVT-AV1-Essential>.
 
     For higher quality mini and non mini encodes, check out `settings_builder_5fish_svt_av1_psy`.
