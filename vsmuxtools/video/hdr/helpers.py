@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import copy
 import json
-import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, Self
+from collections.abc import Sequence
+from typing import Any, Literal, Self
 
 from muxtools import (
+    FileMixin,
+    GlobSearch,
+    PathLike,
+    Trim,
     ParsedFile,
     TrackType,
+    ensure_path,
     ensure_path_exists,
     error,
     get_executable,
@@ -23,6 +28,8 @@ from muxtools import (
     uniquify_path,
 )
 
+from vsmuxtools.utils.source import src_file
+
 from .timeline import (
     compile_editor_timeline,
     duplicate_frame,
@@ -31,9 +38,10 @@ from .timeline import (
     segment_editor_config,
     select_ranges,
 )
+from .types import JSONValue, MetadataOperation, TimelineConfig
 
 
-def _canonical_profile(profile: Any) -> str:
+def _canonical_profile(profile: str | int | float) -> str:
     value = str(profile).strip().lower()
     aliases = {"81": "8.1", "84": "8.4", "p5": "5", "p7": "7", "p8": "8"}
     value = aliases.get(value, value)
@@ -49,29 +57,34 @@ class _DynamicMetadata:
     _suffix = ".sidecar"
     _tool = ""
 
-    def __init__(self, source: Any, *, track: int = 0, metadata_path: Path | None = None) -> None:
+    def __init__(self, source: PathLike | src_file | FileMixin | GlobSearch, *, track: int = 0, metadata_path: PathLike = None) -> None:
         if not isinstance(track, int) or track < 0:
             raise error("track must be a non-negative video-track index.", self)
-        file = getattr(source, "file", source)
-        if isinstance(file, (list, tuple)):
+        file = source.file if isinstance(source, src_file) else source
+        if isinstance(file, list):
             raise error("HDR metadata helpers support one source file; supply already aligned metadata for concatenated sources.", self)
         self._source = ensure_path_exists(file, self)
         self._track = track
         self._from_file = metadata_path is not None
-        self._source_trim_value = copy.deepcopy(getattr(source, "trim", None)) if metadata_path is None else None
+        self._source_trim_value: Trim | list[Trim] | None = (
+            copy.deepcopy(source.trim) if isinstance(source, src_file) and metadata_path is None else None
+        )
         self._mapping: list[int] | None = None
         self._records_cache: dict[Path, list[dict[str, Any]]] = {}
-        self._operations: list[tuple[str, Any]] = []
-        self._stages: list[dict[str, Any]] | None = None
+        self._operations: list[MetadataOperation] = []
+        self._stages: list[dict[str, JSONValue] | TimelineConfig] | None = None
         self._material: Path | None = self._source if self._from_file else None
         self._prepared: Path | None = None
         self._segments: dict[tuple[str, ...], Path] = {}
 
     @classmethod
-    def from_source(cls, source: Any, *, track: int = 0) -> Self:
+    def from_source(cls, source: PathLike | src_file | FileMixin | GlobSearch, *, track: int = 0) -> Self:
         """Create a helper that extracts metadata from one source video track.
 
-        :param source: One video path or source object with a single ``.file``.
+        :param source: Single video source. Source trims are copied and applied before
+                       queued edits without indexing the video. Concatenated sources
+                       are unsupported; supply an aligned sidecar with ``from_file()``.
+                       ``GlobSearch`` uses its first match.
         :param track: Zero-based video-track index to extract.
         :return: A lazy metadata helper whose edits are applied by ``prepare``.
         """
@@ -79,16 +92,15 @@ class _DynamicMetadata:
         return cls(source, track=track)
 
     @classmethod
-    def from_file(cls, path: os.PathLike[str] | str, **kwargs: Any) -> Self:
+    def from_file(cls, path: PathLike, *, track: int = 0) -> Self:
         """Create a helper from an existing metadata sidecar.
 
         :param path: Existing RPU or HDR10+ JSON sidecar.
-        :param kwargs: Constructor options, including an explicit Dolby Vision profile.
+        :param track: Source video-track index, retained for compatibility; no extraction occurs.
         :return: A lazy metadata helper backed by the sidecar.
         """
 
-        metadata_path = Path(path).expanduser()
-        return cls(metadata_path, metadata_path=metadata_path, **kwargs)
+        return cls(path, metadata_path=path, track=track)
 
     def _materialize_source(self) -> Path:
         if self._material is not None:
@@ -103,7 +115,7 @@ class _DynamicMetadata:
             return cached
         info(f"Extracting {self._kind} metadata...", self)
         with tempfile.TemporaryDirectory(prefix="hdr-source-", dir=get_temp_workdir()) as scratch_name:
-            temporary = Path(scratch_name) / f"source{self._suffix}"
+            temporary = ensure_path(scratch_name, self) / f"source{self._suffix}"
             command = "extract-rpu" if self._kind == "dolbyvision" else "extract"
             args = [get_executable(self._tool), command, "-i", str(self._source), "-o", str(temporary)]
             if self._track:
@@ -117,13 +129,14 @@ class _DynamicMetadata:
         self._material = cached
         return cached
 
-    def _records(self, path: Path) -> list[dict[str, Any]]:
-        path = path.resolve()
+    def _records(self, path: PathLike) -> list[dict[str, Any]]:
+        # Raw nested export schemas differ between tools and tool versions.
+        path = ensure_path_exists(path, self)
         if path in self._records_cache:
             return self._records_cache[path]
         if self._kind == "dolbyvision":
             with tempfile.TemporaryDirectory(prefix="hdr-export-", dir=get_temp_workdir()) as scratch_name:
-                exported = Path(scratch_name) / "records.json"
+                exported = ensure_path(scratch_name, self) / "records.json"
                 args = [get_executable("dovi_tool"), "export", "-i", str(path), "--data", f"all={exported}"]
                 if run_commandline(args, quiet=True):
                     raise error("dovi_tool RPU export failed.", self)
@@ -143,11 +156,11 @@ class _DynamicMetadata:
             self._segments.clear()
         return self._mapping
 
-    def _build_state(self, source_count: int) -> tuple[list[int], list[dict[str, Any]]]:
+    def _build_state(self, source_count: int) -> tuple[list[int], list[dict[str, JSONValue] | TimelineConfig]]:
         """Replay queued operations, compiling temporal edits at each metadata barrier."""
 
         mapping = list(range(source_count))
-        stages: list[dict[str, Any]] = []
+        stages: list[dict[str, JSONValue] | TimelineConfig] = []
         stage_length = source_count
         if self._source_trim_value:
             mapping = select_ranges(mapping, self._source_trim_value, self)
@@ -156,30 +169,30 @@ class _DynamicMetadata:
                 stages.append(transition)
             stage_length = len(mapping)
             mapping = list(range(stage_length))
-        for kind, value in self._operations:
-            if kind == "trim":
-                mapping = select_ranges(mapping, value, self)
-            elif kind == "remove":
-                mapping = remove_ranges(mapping, value, self)
-            elif kind == "duplicate":
-                frame, count = value
+        for operation in self._operations:
+            if operation[0] == "trim":
+                mapping = select_ranges(mapping, operation[1], self)
+            elif operation[0] == "remove":
+                mapping = remove_ranges(mapping, operation[1], self)
+            elif operation[0] == "duplicate":
+                frame, count = operation[1]
                 mapping = duplicate_frame(mapping, frame, count)
-            elif kind in {"config", "crop", "active_area"}:
+            elif operation[0] == "config" or operation[0] == "crop" or operation[0] == "active_area":
                 transition = compile_editor_timeline(mapping, stage_length)
                 if transition:
                     stages.append(transition)
-                if kind == "config":
-                    config = copy.deepcopy(value)
-                elif kind == "crop":
-                    config = self._active_area_config(True, value, len(mapping))
+                if operation[0] == "config":
+                    config = copy.deepcopy(operation[1])
+                elif operation[0] == "crop":
+                    config = self._active_area_config(True, operation[1], len(mapping))
                 else:
-                    offsets, frames = value
+                    offsets, frames = operation[1]
                     config = self._active_area_config(offsets, frames, len(mapping))
                 stages.append(config)
                 stage_length = len(mapping)
                 mapping = list(range(stage_length))
             else:
-                raise error(f"Unknown queued HDR operation {kind!r}.", self)
+                raise error(f"Unknown queued HDR operation {operation[0]!r}.", self)
         transition = compile_editor_timeline(mapping, stage_length)
         if transition:
             stages.append(transition)
@@ -188,10 +201,12 @@ class _DynamicMetadata:
             stages.insert(0, extra)
         return mapping, stages
 
-    def _extra_config(self) -> dict[str, Any]:
+    def _extra_config(self) -> dict[str, JSONValue]:
         return {}
 
-    def _active_area_config(self, offsets: Any, frames: Any, length: int) -> dict[str, Any]:
+    def _active_area_config(
+        self, offsets: tuple[int, int, int, int] | Literal[True], frames: Trim | list[int | None] | Sequence[Trim] | None, length: int
+    ) -> dict[str, JSONValue]:
         raise error("Active-area edits are only available for Dolby Vision metadata.", self)
 
     @property
@@ -203,7 +218,7 @@ class _DynamicMetadata:
 
         return len(self._ensure_mapping())
 
-    def trim(self, ranges: Any) -> Self:
+    def trim(self, ranges: Trim | list[int | None] | Sequence[Trim] | None) -> Self:
         """Retain ordered, non-overlapping ranges from the current timeline.
 
         :param ranges: Inclusive-start, exclusive-end frame ranges using source trim semantics.
@@ -214,7 +229,7 @@ class _DynamicMetadata:
         self._mapping = None
         return self
 
-    def remove(self, ranges: Any) -> Self:
+    def remove(self, ranges: Trim | list[int | None] | Sequence[Trim] | None) -> Self:
         """Remove ordered, non-overlapping ranges from the current timeline.
 
         :param ranges: Inclusive-start, exclusive-end frame ranges in the current timeline.
@@ -237,7 +252,7 @@ class _DynamicMetadata:
         self._mapping = None
         return self
 
-    def edit(self, config: dict[str, Any]) -> Self:
+    def edit(self, config: dict[str, JSONValue]) -> Self:
         """Queue a validated upstream editor configuration.
 
         :param config: Metadata-only editor options; temporal keys use the chainable methods.
@@ -253,9 +268,9 @@ class _DynamicMetadata:
         self._mapping = None
         return self
 
-    def _run_editor(self, input_path: Path, config: dict[str, Any], destination: Path) -> Path:
+    def _run_editor(self, input_path: Path, config: dict[str, JSONValue] | TimelineConfig, destination: Path) -> Path:
         with tempfile.TemporaryDirectory(prefix="hdr-edit-", dir=get_temp_workdir()) as scratch_name:
-            scratch = Path(scratch_name)
+            scratch = ensure_path(scratch_name, self)
             config_path = scratch / "edits.json"
             config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
             temporary = scratch / destination.name
@@ -265,7 +280,7 @@ class _DynamicMetadata:
             temporary.replace(destination)
         return destination
 
-    def prepare(self, output: os.PathLike[str] | str | None = None, *, frames: Any = None) -> Path:
+    def prepare(self, output: PathLike = None, *, frames: slice | tuple[int, int] | list[int] | None = None) -> Path:
         """Prepare a reusable metadata sidecar, optionally sliced to one segment.
 
         :param output: Optional destination path for a sidecar copy.
@@ -279,27 +294,28 @@ class _DynamicMetadata:
             current = source
             if self._stages:
                 info(f"Preparing {self._kind} metadata...", self)
-                destination = Path(uniquify_path(get_workdir() / f"{self._source.stem}_{self._kind}_edited{self._suffix}"))
+                destination = ensure_path(uniquify_path(get_workdir() / f"{self._source.stem}_{self._kind}_edited{self._suffix}"), self)
                 with tempfile.TemporaryDirectory(prefix="hdr-stages-", dir=get_temp_workdir()) as scratch_name:
+                    scratch = ensure_path(scratch_name, self)
                     for index, config in enumerate(self._stages):
-                        stage_output = destination if index == len(self._stages) - 1 else Path(scratch_name) / f"stage-{index}{self._suffix}"
+                        stage_output = destination if index == len(self._stages) - 1 else scratch / f"stage-{index}{self._suffix}"
                         current = self._run_editor(current, config, stage_output)
             self._prepared = current
 
         segment = segment_editor_config(len(mapping), frames)
-        if not segment:
+        if "remove" not in segment:
             prepared = self._prepared
         else:
             key = tuple(segment["remove"])
             if key not in self._segments:
-                segment_path = Path(uniquify_path(get_workdir() / f"{self._prepared.stem}_segment{self._suffix}"))
+                segment_path = ensure_path(uniquify_path(get_workdir() / f"{self._prepared.stem}_segment{self._suffix}"), self)
                 self._segments[key] = self._run_editor(self._prepared, segment, segment_path)
             prepared = self._segments[key]
 
         if output is None:
             return prepared
-        destination = Path(output).expanduser().resolve()
-        if destination in (self._source, source.resolve()):
+        destination = ensure_path(output, self)
+        if destination in (self._source, ensure_path(source, self)):
             raise error("Refusing to overwrite metadata input with its prepared output.", self)
         if destination != prepared:
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -314,10 +330,31 @@ class DolbyVision(_DynamicMetadata):
     _suffix = ".rpu"
     _tool = "dovi_tool"
 
-    def __init__(self, source: Any, *, track: int = 0, metadata_path: Path | None = None, profile: Any = None) -> None:
+    def __init__(
+        self,
+        source: PathLike | src_file | FileMixin | GlobSearch,
+        *,
+        track: int = 0,
+        metadata_path: PathLike = None,
+        profile: str | int | float | None = None,
+    ) -> None:
         super().__init__(source, track=track, metadata_path=metadata_path)
-        self._declared_profile = _canonical_profile(profile) if profile is not None else None
+        self._declared_profile: str | None = _canonical_profile(profile) if profile is not None else None
         self._target_profile: str | None = None
+
+    @classmethod
+    def from_file(cls, path: PathLike, *, track: int = 0, profile: str | int | float | None = None) -> Self:
+        """Create a helper from an existing Dolby Vision RPU sidecar.
+
+        :param path: Existing RPU sidecar.
+        :param track: Source video-track index, retained for compatibility; no extraction occurs.
+        :param profile: Optional source profile, e.g. ``"8.1"`` or ``8.4``. Aliases
+                        ``81``, ``84``, ``"p5"``, ``"p7"`` and ``"p8"`` are accepted.
+                        Without a declaration, an RPU's Profile 8 compatibility stays unknown.
+        :return: A lazy metadata helper backed by the sidecar.
+        """
+
+        return cls(path, metadata_path=path, track=track, profile=profile)
 
     @property
     def resolved_profile(self) -> str:
@@ -354,7 +391,7 @@ class DolbyVision(_DynamicMetadata):
             raise error("Dolby Vision RPU has no single identifiable profile.", self)
         return _canonical_profile(values.pop())
 
-    def convert_profile(self, profile: Any) -> Self:
+    def convert_profile(self, profile: str | int | float) -> Self:
         """Request an explicit RPU conversion to Dolby Vision Profile 8.1.
 
         :param profile: Target profile; only P5/P7 to 8.1 is supported.
@@ -369,7 +406,7 @@ class DolbyVision(_DynamicMetadata):
         self._mapping = None
         return self
 
-    def crop_active_area(self, *, frames: Any = None) -> Self:
+    def crop_active_area(self, *, frames: Trim | list[int | None] | Sequence[Trim] | None = None) -> Self:
         """Reset active-area offsets to zero for all or selected frames.
 
         :param frames: Optional current-timeline ranges receiving the crop.
@@ -383,7 +420,7 @@ class DolbyVision(_DynamicMetadata):
         self._mapping = None
         return self
 
-    def active_area(self, left: int, top: int, right: int, bottom: int, *, frames: Any = None) -> Self:
+    def active_area(self, left: int, top: int, right: int, bottom: int, *, frames: Trim | list[int | None] | Sequence[Trim] | None = None) -> Self:
         """Set explicit active-area offsets for all or selected frames.
 
         :param left: Active-area left offset in pixels.
@@ -401,13 +438,16 @@ class DolbyVision(_DynamicMetadata):
         self._mapping = None
         return self
 
-    def _active_area_config(self, offsets: Any, frames: Any, length: int) -> dict[str, Any]:
+    def _active_area_config(
+        self, offsets: tuple[int, int, int, int] | Literal[True], frames: Trim | list[int | None] | Sequence[Trim] | None, length: int
+    ) -> dict[str, JSONValue]:
         if offsets is True:
             if frames is None:
                 return {"active_area": {"crop": True}}
             offsets = (0, 0, 0, 0)
         left, top, right, bottom = offsets
-        preset = {"id": 0, "left": left, "right": right, "top": top, "bottom": bottom}
+        preset: dict[str, JSONValue] = {"id": 0, "left": left, "right": right, "top": top, "bottom": bottom}
+        edits: dict[str, JSONValue]
         if frames is None:
             edits = {"all": 0}
         else:
@@ -417,16 +457,15 @@ class DolbyVision(_DynamicMetadata):
                 edits[f"{first}-{last - 1}"] = 0
         return {"active_area": {"presets": [preset], "edits": edits}}
 
-    def _extra_config(self) -> dict[str, Any]:
-        result: dict[str, Any] = {}
-        if self._target_profile is not None:
-            source = self._input_profile()
-            if self._target_profile == source:
-                return result
-            if self._target_profile != "8.1" or source not in {"5", "7"}:
-                raise error(f"Unsupported Dolby Vision conversion {source} -> {self._target_profile}; only P5/P7 to P8.1 is supported.", self)
-            result["mode"] = 3 if source == "5" else 2
-        return result
+    def _extra_config(self) -> dict[str, JSONValue]:
+        if self._target_profile is None:
+            return {}
+        source = self._input_profile()
+        if self._target_profile == source:
+            return {}
+        if self._target_profile != "8.1" or source not in {"5", "7"}:
+            raise error(f"Unsupported Dolby Vision conversion {source} -> {self._target_profile}; only P5/P7 to P8.1 is supported.", self)
+        return {"mode": 3 if source == "5" else 2}
 
 
 class HDR10Plus(_DynamicMetadata):

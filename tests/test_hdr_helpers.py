@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
 from muxtools import get_executable, run_commandline
 
 from vsmuxtools.video.hdr import DolbyVision, HDR10Plus
+from vsmuxtools import src_file
 
 
 HDR_FIXTURES = Path(__file__).parent / "test-data" / "sample-files" / "hdr"
@@ -32,8 +32,10 @@ def test_dolby_vision_fixture_prepares_real_rpu(tmp_path: Path) -> None:
 
 
 def test_source_trim_snapshot_preserves_leading_padding(tmp_path: Path) -> None:
-    source = SimpleNamespace(file=HDR_FIXTURES / "DV-P8-HDR10.mkv", trim=[(-2, 3)])
+    source = src_file(HDR_FIXTURES / "DV-P8-HDR10.mkv", trim=[(-2, 3)])
     helper = DolbyVision.from_source(source)
+    assert isinstance(source.trim, list)
+    source.trim[:] = [(5, 10)]
 
     prepared = helper.prepare(tmp_path / "padded.rpu")
     records = helper._records(prepared)

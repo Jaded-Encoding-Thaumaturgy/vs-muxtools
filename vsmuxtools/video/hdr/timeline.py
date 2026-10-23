@@ -4,28 +4,26 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from itertools import groupby
-from typing import Any, TypeAlias
+from typing import cast
 
-from muxtools import error
+from muxtools import Trim, error
 from vsmuxtools.utils.source import _resolve_trims
+from .types import DuplicateConfig, TimelineConfig
 
 
-FrameRange: TypeAlias = tuple[int, int | None]
-
-
-def _as_ranges(ranges: Any, caller: Any) -> list[Any]:
+def _as_ranges(ranges: Trim | list[int | None] | Sequence[Trim] | None, caller: object) -> list[Trim]:
     if ranges is None:
         return []
-    if isinstance(ranges, tuple) and len(ranges) == 2 and all(x is None or isinstance(x, int) for x in ranges):
-        return [ranges]
-    if isinstance(ranges, list) and len(ranges) == 2 and all(x is None or isinstance(x, int) for x in ranges):
-        return [tuple(ranges)]
+    if isinstance(ranges, (tuple, list)) and len(ranges) == 2 and all(x is None or isinstance(x, int) for x in ranges):
+        return [cast(Trim, (ranges[0], ranges[1]))]
     if isinstance(ranges, Sequence) and not isinstance(ranges, (str, bytes)):
-        return list(ranges)
+        return list(cast(Sequence[Trim], ranges))
     raise error("Frame ranges must be a (start, end) pair or a sequence of pairs.", caller)
 
 
-def resolve_ranges(ranges: Any, num_frames: int, caller: Any = "HDR metadata") -> list[FrameRange]:
+def resolve_ranges(
+    ranges: Trim | list[int | None] | Sequence[Trim] | None, num_frames: int, caller: object = "HDR metadata"
+) -> list[tuple[int, int | None]]:
     """Resolve Python frame ranges using the source helper's negative-bound semantics."""
 
     values = _as_ranges(ranges, caller)
@@ -43,7 +41,7 @@ def resolve_ranges(ranges: Any, num_frames: int, caller: Any = "HDR metadata") -
     return resolved
 
 
-def select_ranges(mapping: Sequence[int], ranges: Any, caller: Any = "HDR metadata") -> list[int]:
+def select_ranges(mapping: Sequence[int], ranges: Trim | list[int | None] | Sequence[Trim] | None, caller: object = "HDR metadata") -> list[int]:
     """Select ranges from a timeline, retaining the source helper's leading padding behavior."""
 
     if not ranges:
@@ -61,7 +59,7 @@ def select_ranges(mapping: Sequence[int], ranges: Any, caller: Any = "HDR metada
     return selected
 
 
-def remove_ranges(mapping: Sequence[int], ranges: Any, caller: Any = "HDR metadata") -> list[int]:
+def remove_ranges(mapping: Sequence[int], ranges: Trim | list[int | None] | Sequence[Trim] | None, caller: object = "HDR metadata") -> list[int]:
     """Remove inclusive editor ranges expressed as Python exclusive-end ranges."""
 
     if not ranges:
@@ -110,7 +108,7 @@ def editor_ranges(indices: Iterable[int]) -> list[str]:
     return result
 
 
-def compile_editor_timeline(mapping: Sequence[int], source_length: int) -> dict[str, Any]:
+def compile_editor_timeline(mapping: Sequence[int], source_length: int) -> TimelineConfig:
     """Compile a monotonic mapping into dovi_tool/hdr10plus_tool editor operations."""
 
     if source_length < 1:
@@ -131,19 +129,21 @@ def compile_editor_timeline(mapping: Sequence[int], source_length: int) -> dict[
         raise error("Metadata timeline must remain in forward source order.", compile_editor_timeline)
 
     missing = [index for index in range(source_length) if index not in retained_set]
-    config: dict[str, Any] = {}
+    config: TimelineConfig = {}
     if missing:
         # The upstream editors apply list entries to the shortened timeline.
         # Removing from the end keeps all earlier indices stable.
         config["remove"] = list(reversed(editor_ranges(missing)))
 
-    duplicates = [{"source": position, "offset": position, "length": count - 1} for position, (_, count) in enumerate(runs) if count > 1]
+    duplicates: list[DuplicateConfig] = [
+        {"source": position, "offset": position, "length": count - 1} for position, (_, count) in enumerate(runs) if count > 1
+    ]
     if duplicates:
         config["duplicate"] = duplicates
     return config
 
 
-def segment_editor_config(length: int, frames: Any) -> dict[str, Any]:
+def segment_editor_config(length: int, frames: slice | tuple[int, int] | list[int] | None) -> TimelineConfig:
     """Create a range-removal config for a contiguous prepared-output segment."""
 
     if frames is None:
@@ -152,9 +152,7 @@ def segment_editor_config(length: int, frames: Any) -> dict[str, Any]:
         if frames.step not in (None, 1):
             raise error("Metadata segments must use a contiguous frame slice.", segment_editor_config)
         start, end = frames.start or 0, frames.stop if frames.stop is not None else length
-    elif isinstance(frames, tuple) and len(frames) == 2:
-        start, end = frames
-    elif isinstance(frames, list) and len(frames) == 2:
+    elif isinstance(frames, (tuple, list)) and len(frames) == 2:
         start, end = frames
     else:
         raise error("frames must be a slice or a (start, end) segment.", segment_editor_config)
