@@ -431,5 +431,5 @@ def file_or_default(file: PathLike | list[str], default: str, no_warn: bool = Fa
                 return settings, True
 
     if not no_warn:
-        warn("Settings file wasn't found. Using default.", None, 3)
+        warn("Settings file wasn't found. Using default.", None)
     return default, False

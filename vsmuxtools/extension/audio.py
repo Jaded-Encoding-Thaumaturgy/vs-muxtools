@@ -111,9 +111,9 @@ def do_audio(
     """
     if trims is not None:
         if isinstance(fileIn, src_file):
-            danger("Other trims passed will overwrite whatever your src_file has!", do_audio, 1)
+            danger("Other trims passed will overwrite whatever your src_file has!", do_audio)
         if isinstance(fileIn, vs.AudioNode):
-            danger("Trims won't be applied if you pass an Audionode. Just do them yourself before this lol.", do_audio, 1)
+            danger("Trims won't be applied if you pass an Audionode. Just do them yourself before this lol.", do_audio)
             trims = None
             trimmer = None
 

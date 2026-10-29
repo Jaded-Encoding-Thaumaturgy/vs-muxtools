@@ -27,7 +27,7 @@ class FFV1(FFMpegEncoder):
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         bits = get_video_format(clip).bits_per_sample
         if bits > 10:
-            warn(f"You are encoding FFV1 with {bits} bits. It will be massive.", self, 1)
+            warn(f"You are encoding FFV1 with {bits} bits. It will be massive.", self)
         _base = "-coder 1 -context 0 -g 1 -level 3 -threads 0"
         match self.settings:
             case LosslessPreset.SPEED:

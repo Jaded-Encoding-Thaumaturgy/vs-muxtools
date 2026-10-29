@@ -401,13 +401,13 @@ def src(
 
     force_lsmas = kwargs.pop("force_lsmas", False)
     if force_lsmas:
-        warn("force_lsmas is deprecated!\nPlease switch to using the explicit sourcefilter params.", src, 5)
+        warn("force_lsmas is deprecated!\nPlease switch to using the explicit sourcefilter params.", src)
         preview_sourcefilter = None
         sourcefilter = SourceFilter.LSMASH
 
     force_bs = kwargs.pop("force_bs", False)
     if force_bs:
-        warn("force_bs is deprecated!\nPlease switch to using the explicit sourcefilter params.", src, 5)
+        warn("force_bs is deprecated!\nPlease switch to using the explicit sourcefilter params.", src)
         preview_sourcefilter = None
         sourcefilter = SourceFilter.BESTSOURCE
 

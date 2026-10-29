@@ -206,7 +206,7 @@ def fill_props(settings: str, clip: vs.VideoNode, x265: bool, sar: str | None = 
         sarnum = props["sarnum"]
         sarden = props["sarden"]
         if sarnum != "1" or sarden != "1":
-            warn(f"Are you sure your SAR ({sarnum}:{sarden}) is correct?\nAre you perhaps working on an anamorphic source?", None, 2)
+            warn(f"Are you sure your SAR ({sarnum}:{sarden}) is correct?\nAre you perhaps working on an anamorphic source?", None)
     settings = re.sub(r"{chromaloc(?::.)?}", props["chromaloc"], settings)
     settings = re.sub(r"{primaries(?::.)?}", props["primaries"], settings)
     settings = re.sub(r"{bits(?::.)?}", props["depth"], settings)
@@ -238,7 +238,7 @@ def props_args(clip: vs.VideoNode, x265: bool, sar: str | None = None) -> list[s
         sarnum = props.get("sarnum")
         sarden = props.get("sarden")
         if sarnum != "1" or sarden != "1":
-            warn(f"Are you sure your SAR ({sarnum}:{sarden}) is correct?\nAre you perhaps working on an anamorphic source?", None, 2)
+            warn(f"Are you sure your SAR ({sarnum}:{sarden}) is correct?\nAre you perhaps working on an anamorphic source?", None)
 
     # fmt: off
     args.extend([
