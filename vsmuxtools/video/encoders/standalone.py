@@ -234,7 +234,7 @@ class LosslessX264(VideoEncoder):
                 preset = self.preset
         settings = ["--preset", preset, "--qp", "0"] + self.get_custom_args()
         if clip.format.bits_per_sample > 10:
-            warn("This encoder does not support a bit depth over 10.\nClip will be dithered to 10 bit.", self, 2)
+            warn("This encoder does not support a bit depth over 10.\nClip will be dithered to 10 bit.", self)
             clip = finalize_clip(clip, 10)
 
         if self.settings:
@@ -303,13 +303,13 @@ class SVTAV1(VideoEncoder):
         if self._settings_builder_id is not None:
             if not re.match(self._settings_builder_id, self._encoder_id):
                 warn(f"Unexpected encoder version: {self._encoder_id}.", self)
-                warn(f"Encoder version expected by the settings_builder: {self._settings_builder_id}.", self, 2)
+                warn(f"Encoder version expected by the settings_builder: {self._settings_builder_id}.", self)
 
         if self.resumable:
             self._check_mkvextract_version()
 
         if not self.sd_clip and not self._encoder_id.startswith("SVT-AV1-Essential") and "_c" not in self.get_custom_args_dict():
-            warn("Providing a clip or a file for scene detection is recommended for SVT-AV1.", self, 2)
+            warn("Providing a clip or a file for scene detection is recommended for SVT-AV1.", self)
 
     def _check_mkvextract_version(self) -> None:
         mkvextract_ver = get_binary_version(get_executable("mkvextract"), r"mkvextract v([0-9.]+)", ["--version"])
@@ -325,10 +325,10 @@ class SVTAV1(VideoEncoder):
     @keep.running
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         if clip.format.bits_per_sample > 10:
-            warn("SVT-AV1 doesn't support a bit depth over 10.\nClip will be dithered to 10 bit.", self, 2)
+            warn("SVT-AV1 doesn't support a bit depth over 10.\nClip will be dithered to 10 bit.", self)
             clip = finalize_clip(clip, 10)
         elif clip.format.bits_per_sample < 10:
-            warn("SVT-AV1 works best at 10 bit.\nClip will be converted to 10 bit", self, 2)
+            warn("SVT-AV1 works best at 10 bit.\nClip will be converted to 10 bit", self)
             clip = finalize_clip(clip, 10)
 
         clip_props = props_dict(clip, False, SVT_AV1_RANGES)

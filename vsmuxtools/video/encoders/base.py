@@ -147,7 +147,7 @@ class SupportsQP(VideoEncoder):
     @keep.running
     def encode(self, clip: vs.VideoNode, outfile: PathLike | None = None) -> VideoFile:
         if clip.format.bits_per_sample > (12 if self.x265 else 10):
-            warn(f"This encoder does not support a bit depth over {(12 if self.x265 else 10)}.\nClip will be dithered to 10 bit.", self, 2)
+            warn(f"This encoder does not support a bit depth over {(12 if self.x265 else 10)}.\nClip will be dithered to 10 bit.", self)
             clip = finalize_clip(clip, 10)
         out = make_output(
             ensure_path_exists(self.qp_clip.file, self).stem if isinstance(self.qp_clip, src_file) else "encoded",
