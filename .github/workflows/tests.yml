@@ -8,15 +8,16 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     env:
-      PYTHON_VER: "3.14"
+      PYTHON_VER: "3.15"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           submodules: recursive
+
       - name: Setup uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: ${{ env.PYTHON_VER }}
           enable-cache: true
@@ -26,8 +27,6 @@ jobs:
         with:
           path: .muxtools/bins
           key: ${{ runner.os }}-${{ runner.arch }}-binaries-${{ hashFiles('muxtools.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-binaries-
 
       - name: Sync project binaries
         run: uv run muxtools binaries sync
