@@ -837,8 +837,8 @@ wheels = [
 
 [[package]]
 name = "muxtools"
-version = "0.5.0.dev25+gdbf5b7f"
-source = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/muxtools.git#dbf5b7ff14143da2c70e98eeaf670dac614e4789" }
+version = "0.5.0"
+source = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/muxtools.git#95b7e04b44fc35c572453e656b4ae003591e3f56" }
 dependencies = [
     { name = "ass" },
     { name = "ass-tag-analyzer" },

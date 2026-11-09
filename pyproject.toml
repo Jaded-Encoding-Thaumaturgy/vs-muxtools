@@ -8,7 +8,7 @@ dependencies = [
     "vapoursynth>=75",
     "vsjetpack>=2.0.0",
     "numpy>=2.0.0",
-    "muxtools>=0.4.3",
+    "muxtools>=0.5.0",
     "pyparsebluray>=0.1.4",
     "vapoursynth-bestsource>=17.0",
     "vapoursynth-ffms2>=5.2.0",
@@ -64,7 +64,7 @@ artifacts = ["vsmuxtools/_version.py"]
 [tool.hatch.version]
 source = "versioningit"
 default-version = "0.0.0+unknown"
-next-version = "smallest"
+next-version = "smallest-release"
 write = { file = "vsmuxtools/_version.py", template = "__version__ = \"{normalized_version}\"\n__version_tuple__ = {version_tuple}" }
 
 [tool.hatch.version.format]
